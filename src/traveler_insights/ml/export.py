@@ -15,6 +15,16 @@ def a_json(pipeline, metadata: dict) -> dict:
     coef = clf.coef_                      # (k, n) o (1, n) si es binario
     blocks, offset = [], 0
     for name, vec in feats.transformer_list:
+        if name == "lex":
+            esc = vec.named_steps["escala"]
+            n = len(esc.mean_)
+            blocks.append({"name": name, "analyzer": "lexical",
+                           "names": list(vec.named_steps["rasgos"].get_feature_names_out()),
+                           "mean": [round(float(x), 8) for x in esc.mean_],
+                           "scale": [round(float(x), 8) for x in esc.scale_],
+                           "weights": [[round(float(x), 8) for x in coef[:, offset + j]] for j in range(n)]})
+            offset += n
+            continue
         vocab = vec.vocabulary_
         idf = vec.idf_
         n = len(vocab)

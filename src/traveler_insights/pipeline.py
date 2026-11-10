@@ -90,6 +90,8 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
     e = cfg["evaluation"]
     res["candidate"]["bootstrap_ci_macro_f1"] = ev.bootstrap_ic(y_te, preds["candidate"], e["bootstrap_samples"], seed)
     res["candidate"]["mcnemar_vs_naive_bayes"] = ev.mcnemar(y_te, preds["candidate"], preds["tfidf_naive_bayes"])
+    if "tfidf_logreg_sin_lexico" in preds:
+        res["candidate"]["mcnemar_vs_sin_lexico"] = ev.mcnemar(y_te, preds["candidate"], preds["tfidf_logreg_sin_lexico"])
     res["candidate"]["calibration"] = ev.calibracion(y_te, proba, cand.classes_, e["calibration_bins"])
     res["candidate"]["tau_curve"] = ev.curva_tau(y_te, proba, cand.classes_)
     res["candidate"]["by_length"] = ev.por_subgrupo(X_te, y_te, preds["candidate"])
@@ -139,6 +141,13 @@ def informe(res: dict, calidad: dict) -> str:
     gate = "\n".join(f"- {'✅' if v['passed'] else '❌'} **{k}**: {v['detail']}" for k, v in res["quality_gate"]["checks"].items())
     ic = c["bootstrap_ci_macro_f1"]
     mc = c["mcnemar_vs_naive_bayes"]
+    abl = ""
+    if "mcnemar_vs_sin_lexico" in c:
+        a = c["mcnemar_vs_sin_lexico"]
+        f_sin = res["baselines"]["tfidf_logreg_sin_lexico"]["test"]["macro_f1"]
+        abl = (f"- **Ablación de rasgos léxicos:** macro-F1 con léxico {c['test']['macro_f1']:.4f} vs. sin léxico {f_sin:.4f}; "
+               f"McNemar: solo con léxico acierta {a['only_candidate_correct']}, solo sin léxico acierta "
+               f"{a['only_baseline_correct']}, p = {a['p_value']}\n")
     sub = "\n".join(f"| {g} | {v['n']} | {v['macro_f1']} |" for g, v in c["by_length"].items())
     return f"""# Informe de evaluación
 
@@ -155,7 +164,7 @@ Generado: {res['run']['timestamp_utc']} · datos `{calidad['data_sha256'][:12]}`
 - IC 95 % por bootstrap del macro-F1 del candidato: [{ic['low']}, {ic['high']}]
 - McNemar frente a Naive Bayes: solo el candidato acierta {mc['only_candidate_correct']}, solo NB acierta {mc['only_baseline_correct']}, p = {mc['p_value']}
 - Calibración: ECE = {c['calibration']['ece']}
-
+{abl}
 ## Desempeño por longitud de reseña
 | Grupo | n | macro-F1 |
 |---|---|---|
@@ -168,7 +177,7 @@ def model_card(res: dict, calidad: dict, spec: dict) -> str:
     return f"""# Model card · Traveler Insights
 
 - **Tarea:** clasificación de reseñas de viajeros ({', '.join(spec['classes'])}).
-- **Arquitectura:** TF-IDF de palabras {res['run']['config']['model']['word_ngram_range']} y caracteres {res['run']['config']['model']['char_ngram_range']} → Regresión logística (C={res['run']['config']['model']['C']}, pesos de clase balanceados). Servido como JSON sin scikit-learn.
+- **Arquitectura:** TF-IDF de palabras {res['run']['config']['model']['word_ngram_range']} y caracteres {res['run']['config']['model']['char_ngram_range']}{' + rasgos léxicos del curso (core/lexical.py, escalados)' if res['run']['config']['model'].get('lexical_features') else ''} → Regresión logística (C={res['run']['config']['model']['C']}, pesos de clase balanceados). Servido como JSON sin scikit-learn.
 - **Datos:** competencia Kaggle *Traveler Insights UPTC 2026*; huella `{calidad['data_sha256'][:16]}`; {calidad['rows_final']} reseñas tras limpieza.
 - **Desempeño en prueba:** macro-F1 {c['test']['macro_f1']} (IC 95 % [{c['bootstrap_ci_macro_f1']['low']}, {c['bootstrap_ci_macro_f1']['high']}]), exactitud {c['test']['accuracy']}, ECE {c['calibration']['ece']}.
 - **Uso previsto:** apoyo a un equipo humano que clasifica y responde reseñas. Las respuestas son sugerencias.

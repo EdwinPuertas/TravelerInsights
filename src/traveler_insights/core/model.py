@@ -22,6 +22,8 @@ import math
 from collections import Counter
 from pathlib import Path
 
+from .lexical import NOMBRES as NOMBRES_LEX
+from .lexical import rasgos
 from .text import char_wb_ngrams, normalizar, word_ngrams
 
 FORMAT = "traveler-insights/linear-tfidf@1"
@@ -64,12 +66,26 @@ class LinearTextModel:
                 scores[k] += x * w[k + 1]
         return scores
 
+    @staticmethod
+    def _lexical_scores(texto: str, block: dict, n_out: int) -> list[float]:
+        if block["names"] != NOMBRES_LEX:
+            raise ValueError("Los rasgos léxicos del modelo no coinciden con core/lexical.py")
+        scores = [0.0] * n_out
+        for x, m, sc, w in zip(rasgos(texto), block["mean"], block["scale"], block["weights"]):
+            v = (x - m) / sc
+            for k in range(n_out):
+                scores[k] += v * w[k]
+        return scores
+
     def decision_function(self, texto: str) -> list[float]:
         t = normalizar(texto)
         n_out = len(self.intercept)
         z = list(self.intercept)
         for b in self.blocks:
-            s = self._block_scores(t, b, n_out)
+            if b["analyzer"] == "lexical":
+                s = self._lexical_scores(texto, b, n_out)
+            else:
+                s = self._block_scores(t, b, n_out)
             z = [a + c for a, c in zip(z, s)]
         return z
 

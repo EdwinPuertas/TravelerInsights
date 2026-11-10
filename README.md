@@ -41,6 +41,7 @@ Esta tabla es el registro vivo del proyecto. Cada nueva funcionalidad se agrega 
 | 1.0 | API FastAPI y app web (reseña individual, lote CSV, impacto, ficha del modelo) | 5 · Despliegue | `app.py`, `web/index.html` |
 | 1.0 | CI, entrenamiento continuo con PR, despliegue y monitoreo de salud | 6 · Operación | `.github/workflows/` |
 | 1.1 | Notebook del pipeline paso a paso: evaluación, pruebas de comportamiento sobre reseñas reales, exportación, integración con la API y deriva (PSI) con `test.csv` | 2–6 | `notebooks/TravelerInsights_Pipeline_CRISP-MLQ.ipynb` |
+| 1.2 | Rasgos léxicos de los modelos anteriores del curso (léxico de `lexical_features.py` de courseNLP: pronombres, adverbios de negación/tiempo/lugar/modo/cantidad, adjetivos, personas, odio y estadísticas de palabras), con 4 correcciones documentadas, unidos al TF-IDF y evaluados por ablación (con vs. sin léxico) | 3–5 | `core/lexical.py`, `ml/lexical.py`, `params.yaml › model.lexical_features` |
 
 **Siguientes funcionalidades sugeridas:** reemplazar el modelo por el Transformer afinado del proyecto integrador (sección 10), registro anónimo de predicciones para medir deriva y análisis de sentimiento por aspectos con un modelo.
 
@@ -102,6 +103,7 @@ TravelerInsights/
 ├── src/traveler_insights/
 │   ├── core/                   # se despliega: Python puro
 │   │   ├── text.py             # normalización y n-gramas idénticos a scikit-learn
+│   │   ├── lexical.py          # rasgos léxicos del curso (Python puro)
 │   │   ├── model.py            # inferencia desde model.json
 │   │   └── business.py         # aspectos, respuestas, guardarraíl, umbral τ
 │   ├── ml/                     # NO se despliega: entrenamiento

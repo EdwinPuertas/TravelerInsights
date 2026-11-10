@@ -20,6 +20,9 @@ data:
     max_conflict_rate: 0.02   # textos idénticos con etiquetas distintas
 
 model:
+  # Rasgos léxicos de los modelos anteriores del curso (pronombres, adverbios, adjetivos,
+  # personas, odio, estadísticas de palabras). Ver src/traveler_insights/core/lexical.py
+  lexical_features: true
   word_ngram_range: [1, 2]
   word_min_df: 2
   char_ngram_range: [3, 5]
