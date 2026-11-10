@@ -1,9 +1,13 @@
 """Fase 2 de CRISP-ML(Q): preparación y validación de datos."""
 from __future__ import annotations
 
+import re
+
 import pandas as pd
 
 from ..core.text import normalizar
+
+NOMBRES_ETIQUETA = re.compile(r"sentim|label|etiqueta|target|clase|polari")
 
 
 def detectar_columnas(df: pd.DataFrame, text_col=None, label_col=None) -> tuple[str, str]:
@@ -18,7 +22,12 @@ def detectar_columnas(df: pd.DataFrame, text_col=None, label_col=None) -> tuple[
                 and not str(c).lower().startswith("id")]
         if not cand:
             raise ValueError("No hay columna de etiqueta: defina data.label_col en params.yaml")
-        label_col = min(cand, key=lambda c: df[c].nunique())
+        # Preferir nombres típicos de etiqueta; si no hay, la columna con menos categorías
+        preferidas = [c for c in cand if NOMBRES_ETIQUETA.search(str(c).lower())]
+        label_col = preferidas[0] if preferidas else min(cand, key=lambda c: df[c].nunique())
+    for c in (text_col, label_col):
+        if c not in df.columns:
+            raise ValueError(f"La columna '{c}' no existe. Columnas disponibles: {list(df.columns)}")
     return text_col, label_col
 
 

@@ -6,8 +6,11 @@ seed: 42
 
 data:
   train_path: data/raw/train.csv
-  text_col: null          # null = detección automática
-  label_col: null
+  # Columnas del dataset de Kaggle Traveler Insights UPTC 2026 (ver página Data de la competencia).
+  # Se fijan explícitamente: la detección automática puede confundir la etiqueta con otra
+  # columna de pocas categorías (p. ej. "Sitio": Tripadvisor/Foursquare).
+  text_col: Comentario
+  label_col: Sentimiento
   test_size: 0.2          # partición de prueba, se usa una sola vez
   # Requisitos de calidad de datos (fase 2). Si no se cumplen, el pipeline se detiene.
   quality:
