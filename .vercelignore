@@ -1,0 +1,10 @@
+# Lo que NO se sube a la función de Vercel (solo se necesitan app.py, src/core, web/ y model/)
+data/
+notebooks/
+tests/
+docs/
+reports/
+configs/
+.github/
+src/traveler_insights/ml/
+src/traveler_insights/pipeline.py

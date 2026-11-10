@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Traveler Insights · Análisis de reseñas con PLN</title>
+<style>
+  :root { --red:#C10230; --ink:#222222; --gray:#6F7271; --line:#D3D4DF; --soft:#F4F5F6; --pink:#FBE6EB; --ok:#1E7B4A; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:#fff; }
+  header { padding:28px 32px 8px; max-width:1100px; margin:auto; }
+  h1 { color:var(--red); margin:0 0 4px; font-size:30px; }
+  .sub { color:var(--gray); margin:0; }
+  main { max-width:1100px; margin:auto; padding:8px 32px 48px; }
+  nav { display:flex; gap:6px; margin:18px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  nav button { background:none; border:none; padding:10px 14px; font-size:15px; color:var(--gray); cursor:pointer; border-bottom:3px solid transparent; }
+  nav button.on { color:var(--red); border-bottom-color:var(--red); font-weight:600; }
+  section { display:none; } section.on { display:block; }
+  textarea, input[type=number], select { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font:inherit; }
+  textarea { min-height:120px; resize:vertical; }
+  .btn { background:var(--red); color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:15px; cursor:pointer; margin-top:10px; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .btn.sec { background:var(--ink); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin:16px 0; }
+  .card { background:var(--soft); border-radius:12px; padding:16px; }
+  .card.warn { background:var(--pink); }
+  .k { color:var(--gray); font-size:13px; } .v { font-size:26px; font-weight:700; color:var(--ink); margin-top:4px; }
+  .tag { display:inline-block; background:#fff; border:1px solid var(--line); border-radius:999px; padding:2px 10px; margin:2px; font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; margin-top:12px; }
+  th { background:var(--red); color:#fff; text-align:left; padding:8px; position:sticky; top:0; }
+  td { border-bottom:1px solid var(--line); padding:8px; vertical-align:top; }
+  .scroll { max-height:460px; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+  .auto { color:var(--ok); font-weight:600; } .human { color:var(--red); font-weight:600; }
+  .row { display:flex; gap:12px; align-items:end; flex-wrap:wrap; } .row > div { flex:1; min-width:160px; }
+  .note { color:var(--gray); font-size:13px; }
+  .err { color:var(--red); }
+  label { font-size:14px; color:var(--gray); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Traveler Insights</h1>
+  <p class="sub">Clasificación de reseñas · aspectos · respuesta sugerida · humano en el bucle</p>
+</header>
+<main>
+  <div class="row">
+    <div><label>Umbral de confianza τ: <b id="tauv">0.70</b></label>
+      <input id="tau" type="range" min="0.3" max="0.95" step="0.05" value="0.7" style="width:100%"></div>
+    <div class="note" id="estado">Cargando modelo…</div>
+  </div>
+  <nav>
+    <button class="on" data-t="uno">Reseña individual</button>
+    <button data-t="lote">Lote (CSV)</button>
+    <button data-t="impacto">Impacto</button>
+    <button data-t="modelo">Sobre el modelo</button>
+  </nav>
+
+  <section id="uno" class="on">
+    <textarea id="texto" placeholder="Escribe o pega una reseña de un viajero…"></textarea>
+    <button class="btn" id="analizar">Analizar</button>
+    <div id="res1"></div>
+  </section>
+
+  <section id="lote">
+    <p class="note">El archivo se lee en tu navegador y se envía a la API en bloques de 200 reseñas. No se guarda.</p>
+    <input type="file" id="csv" accept=".csv">
+    <div class="row" style="margin-top:10px"><div><label>Columna de texto</label><select id="col"></select></div></div>
+    <button class="btn" id="procesar" disabled>Procesar</button>
+    <button class="btn sec" id="descargar" disabled>Descargar resultados</button>
+    <div id="resLote"></div>
+  </section>
+
+  <section id="impacto">
+    <p class="note">La curva viene de la partición de prueba del entrenamiento. Los supuestos de costo son <b>ilustrativos</b>: reemplázalos con datos de la organización.</p>
+    <div id="curva"></div>
+    <div class="grid">
+      <div><label>Reseñas por mes</label><input type="number" id="vol" value="3000"></div>
+      <div><label>Minutos por reseña (manual)</label><input type="number" id="mman" value="4" step="0.5"></div>
+      <div><label>Minutos de supervisión (auto)</label><input type="number" id="msup" value="0.5" step="0.1"></div>
+      <div><label>Costo por hora</label><input type="number" id="costo" value="25000" step="1000"></div>
+    </div>
+    <div class="grid" id="kpis"></div>
+  </section>
+
+  <section id="modelo"><div id="info"></div></section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+let MODEL = null, filas = [], resultados = [];
+const tau = () => parseFloat($("#tau").value);
+$("#tau").oninput = () => { $("#tauv").textContent = tau().toFixed(2); impacto(); };
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button, section").forEach(e => e.classList.remove("on"));
+  b.classList.add("on"); $("#" + b.dataset.t).classList.add("on");
+});
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function api(path, body) {
+  const r = await fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail ? JSON.stringify(j.detail) : r.statusText);
+  return j;
+}
+
+async function cargar() {
+  try {
+    MODEL = await api("/api/model");
+    if (MODEL.metadata && MODEL.metadata.tau) { $("#tau").value = MODEL.metadata.tau; $("#tauv").textContent = (+MODEL.metadata.tau).toFixed(2); }
+    const f1 = MODEL.evaluation ? MODEL.evaluation.test_macro_f1.toFixed(3) : "—";
+    $("#estado").textContent = `Modelo cargado · clases: ${MODEL.classes.join(", ")} · macro-F1 prueba ${f1}`;
+    info(); impacto();
+  } catch (e) { $("#estado").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+
+$("#analizar").onclick = async () => {
+  const t = $("#texto").value.trim(); if (!t) return;
+  try {
+    const r = (await api("/api/analyze", {texts:[t], tau:tau()})).results[0];
+    $("#res1").innerHTML = `
+      <div class="grid">
+        <div class="card"><div class="k">Clase</div><div class="v">${esc(r.clase)}</div></div>
+        <div class="card"><div class="k">Confianza</div><div class="v">${(r.confianza*100).toFixed(0)} %</div></div>
+        <div class="card ${r.decision==="automatizar"?"":"warn"}"><div class="k">Decisión</div>
+          <div class="v ${r.decision==="automatizar"?"auto":"human"}">${r.decision==="automatizar"?"Automatizar":"Revisión humana"}</div>
+          <div class="note">${esc(r.motivos.join("; "))}</div></div>
+      </div>
+      <p><b>Aspectos:</b> ${r.aspectos.length ? r.aspectos.map(a=>`<span class="tag">${esc(a)}</span>`).join("") : "ninguno"}</p>
+      <label>Respuesta sugerida (editable)</label><textarea>${esc(r.respuesta_sugerida)}</textarea>`;
+  } catch (e) { $("#res1").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+};
+
+// ---- CSV (lector con soporte de comillas)
+function parseCSV(txt) {
+  const rows = []; let row = [], cur = "", q = false;
+  for (let i = 0; i < txt.length; i++) {
+    const c = txt[i];
+    if (q) { if (c === '"') { if (txt[i+1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === ",") { row.push(cur); cur = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && txt[i+1] === "\n") i++; row.push(cur); rows.push(row); row = []; cur = ""; }
+    else cur += c;
+  }
+  if (cur !== "" || row.length) { row.push(cur); rows.push(row); }
+  return rows.filter(r => r.length > 1 || r[0] !== "");
+}
+$("#csv").onchange = async e => {
+  const rows = parseCSV(await e.target.files[0].text());
+  const head = rows[0]; filas = rows.slice(1);
+  const largo = head.map((_, j) => filas.slice(0, 200).reduce((s, r) => s + (r[j] || "").length, 0));
+  $("#col").innerHTML = head.map((h, j) => `<option value="${j}" ${largo[j] === Math.max(...largo) ? "selected" : ""}>${esc(h)}</option>`).join("");
+  $("#procesar").disabled = false;
+};
+$("#procesar").onclick = async () => {
+  const j = +$("#col").value, textos = filas.map(r => r[j] || "");
+  resultados = [];
+  for (let i = 0; i < textos.length; i += 200) {
+    $("#resLote").innerHTML = `<p class="note">Procesando ${i} / ${textos.length}…</p>`;
+    try { resultados.push(...(await api("/api/analyze", {texts: textos.slice(i, i + 200), tau: tau()})).results); }
+    catch (e) { $("#resLote").innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+  }
+  const n = resultados.length, auto = resultados.filter(r => r.decision === "automatizar").length;
+  const porClase = {}; const asp = {};
+  resultados.forEach(r => { porClase[r.clase] = (porClase[r.clase] || 0) + 1; r.aspectos.forEach(a => { asp[a] = asp[a] || {}; asp[a][r.clase] = (asp[a][r.clase] || 0) + 1; }); });
+  const clases = Object.keys(porClase);
+  $("#resLote").innerHTML = `
+    <div class="grid">
+      <div class="card"><div class="k">Reseñas</div><div class="v">${n}</div></div>
+      <div class="card"><div class="k">Automatizables</div><div class="v">${(100*auto/n).toFixed(0)} %</div></div>
+      <div class="card warn"><div class="k">A revisión humana</div><div class="v">${n - auto}</div></div>
+    </div>
+    <h3>Aspectos por clase</h3>
+    <table><tr><th>Aspecto</th>${clases.map(c=>`<th>${esc(c)}</th>`).join("")}</tr>
+      ${Object.entries(asp).map(([a,v]) => `<tr><td>${esc(a)}</td>${clases.map(c=>`<td>${v[c]||0}</td>`).join("")}</tr>`).join("")}</table>
+    <h3>Resultados</h3>
+    <div class="scroll"><table><tr><th>Reseña</th><th>Clase</th><th>Conf.</th><th>Aspectos</th><th>Decisión</th></tr>
+      ${resultados.slice(0, 500).map(r => `<tr><td>${esc(r.texto.slice(0, 160))}</td><td>${esc(r.clase)}</td><td>${r.confianza.toFixed(2)}</td><td>${esc(r.aspectos.join(", "))}</td><td class="${r.decision==="automatizar"?"auto":"human"}">${r.decision==="automatizar"?"auto":"humana"}</td></tr>`).join("")}
+    </table></div><p class="note">Se muestran hasta 500 filas; la descarga incluye todas.</p>`;
+  $("#descargar").disabled = false;
+};
+$("#descargar").onclick = () => {
+  const cols = ["texto","clase","confianza","polaridad","aspectos","respuesta_sugerida","decision","motivos"];
+  const q = v => `"${String(Array.isArray(v) ? v.join("; ") : v).replace(/"/g, '""')}"`;
+  const csv = [cols.join(","), ...resultados.map(r => cols.map(c => q(r[c])).join(","))].join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], {type:"text/csv"}));
+  a.download = "resultados_traveler_insights.csv"; a.click();
+};
+
+// ---- Impacto
+["vol","mman","msup","costo"].forEach(id => $("#" + id).oninput = impacto);
+function impacto() {
+  if (!MODEL || !MODEL.evaluation) { $("#curva").innerHTML = `<p class="note">Sin métricas de evaluación.</p>`; return; }
+  const c = MODEL.evaluation.tau_curve, W = 640, H = 240, P = 36;
+  const x = t => P + (t - 0.3) / 0.65 * (W - 2*P), y = v => H - P - v * (H - 2*P);
+  const linea = (k, col) => `<polyline fill="none" stroke="${col}" stroke-width="2.5" points="${c.filter(p=>p[k]!=null).map(p=>`${x(p.tau)},${y(p[k])}`).join(" ")}"/>`;
+  $("#curva").innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="max-width:${W}px;width:100%">
+    <line x1="${P}" y1="${H-P}" x2="${W-P}" y2="${H-P}" stroke="#D3D4DF"/><line x1="${P}" y1="${P}" x2="${P}" y2="${H-P}" stroke="#D3D4DF"/>
+    ${[0,0.5,1].map(v=>`<text x="${P-6}" y="${y(v)+4}" font-size="11" text-anchor="end" fill="#6F7271">${v}</text>`).join("")}
+    ${[0.3,0.5,0.7,0.9].map(t=>`<text x="${x(t)}" y="${H-P+16}" font-size="11" text-anchor="middle" fill="#6F7271">${t}</text>`).join("")}
+    ${linea("coverage","#C10230")}${linea("accuracy_auto","#222222")}
+    <line x1="${x(tau())}" y1="${P}" x2="${x(tau())}" y2="${H-P}" stroke="#6F7271" stroke-dasharray="4"/>
+    <text x="${W-P}" y="${P-10}" font-size="12" text-anchor="end"><tspan fill="#C10230">■ % automatizado</tspan>  <tspan fill="#222">■ exactitud en lo automatizado</tspan></text>
+  </svg>`;
+  const f = c.reduce((a, b) => Math.abs(b.tau - tau()) < Math.abs(a.tau - tau()) ? b : a);
+  const vol = +$("#vol").value, mm = +$("#mman").value, ms = +$("#msup").value, costo = +$("#costo").value;
+  const auto = vol * f.coverage, h0 = vol * mm / 60, h1 = ((vol - auto) * mm + auto * ms) / 60;
+  const err = auto * (1 - (f.accuracy_auto ?? 0));
+  const fmt = v => Math.round(v).toLocaleString("es-CO");
+  $("#kpis").innerHTML = `
+    <div class="card"><div class="k">Automatizado</div><div class="v">${(100*f.coverage).toFixed(0)} %</div></div>
+    <div class="card"><div class="k">Horas/mes</div><div class="v">${fmt(h0)} → ${fmt(h1)}</div></div>
+    <div class="card"><div class="k">Ahorro/mes</div><div class="v">$${fmt((h0 - h1) * costo)}</div></div>
+    <div class="card warn"><div class="k">Errores automatizados/mes</div><div class="v">${fmt(err)}</div></div>`;
+}
+
+function info() {
+  const e = MODEL.evaluation;
+  if (!e) { $("#info").innerHTML = "<p>Sin métricas.</p>"; return; }
+  const g = e.quality_gate.checks;
+  $("#info").innerHTML = `
+    <div class="grid">
+      <div class="card"><div class="k">Macro-F1 (prueba)</div><div class="v">${e.test_macro_f1.toFixed(3)}</div><div class="note">IC 95 % [${e.bootstrap_ci.low}, ${e.bootstrap_ci.high}]</div></div>
+      <div class="card"><div class="k">Exactitud (prueba)</div><div class="v">${e.test_accuracy.toFixed(3)}</div></div>
+      <div class="card"><div class="k">Calibración (ECE)</div><div class="v">${e.ece}</div></div>
+    </div>
+    <h3>Compuerta de calidad</h3>
+    <table><tr><th>Control</th><th>Resultado</th><th>Detalle</th></tr>
+      ${Object.entries(g).map(([k,v]) => `<tr><td>${esc(k)}</td><td class="${v.passed?"auto":"human"}">${v.passed?"aprobado":"rechazado"}</td><td>${esc(v.detail)}</td></tr>`).join("")}
+    </table>
+    <p class="note">Modelo: TF-IDF de palabras y caracteres + regresión logística, entrenado con scikit-learn y servido como JSON. Las respuestas son sugerencias: una persona decide.</p>`;
+}
+cargar();
+</script>
+</body>
+</html>

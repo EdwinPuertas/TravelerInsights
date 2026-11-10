@@ -1,0 +1,10 @@
+# Datos de Kaggle: NO se versionan (ver data/README.md)
+data/raw/
+*.zip
+# Entornos y cachés
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.vercel/
+.ipynb_checkpoints/

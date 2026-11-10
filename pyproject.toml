@@ -1,0 +1,43 @@
+[project]
+name = "traveler-insights"
+version = "1.0.0"
+description = "Solución de PLN para reseñas de viajeros: clasificación, aspectos, respuesta sugerida y humano en el bucle (CRISP-ML(Q) + MLOps)."
+readme = "README.md"
+requires-python = ">=3.12"
+# Dependencias de PRODUCCIÓN (las que instala Vercel): solo la API.
+dependencies = [
+    "fastapi>=0.115",
+]
+
+[project.optional-dependencies]
+# Entrenamiento y evaluación (local o GitHub Actions)
+train = [
+    "scikit-learn>=1.5",
+    "pandas>=2.2",
+    "numpy>=1.26",
+    "scipy>=1.13",
+    "pyyaml>=6.0",
+    "kaggle>=1.6",
+]
+dev = [
+    "pytest>=8.0",
+    "httpx>=0.27",
+    "ruff>=0.6",
+    "uvicorn>=0.30",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 130
+src = ["src"]
+extend-exclude = ["notebooks"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501", "B905"]
+
+[tool.ruff.lint.per-file-ignores]
+"app.py" = ["E402"]   # sys.path se ajusta antes de importar el paquete

@@ -1,0 +1,42 @@
+# Integración continua: calidad del código y contrato del modelo.
+# Se ejecuta en cada push y pull request. Un PR no se debe fusionar si falla.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Instalar dependencias
+        run: pip install -e ".[train,dev]"
+      - name: Lint (ruff)
+        run: ruff check .
+      - name: Pruebas (paridad sklearn↔JSON, negocio, API, pipeline)
+        run: pytest -q
+      - name: Contrato del modelo desplegable
+        run: |
+          python - <<'PY'
+          import json, os, sys
+          sys.path.insert(0, "src")
+          from traveler_insights.core.model import LinearTextModel
+          p = "model/model.json"
+          if not os.path.exists(p):
+              print("Aún no hay modelo en model/ (se crea con el workflow Train)."); sys.exit(0)
+          size = os.path.getsize(p) / 1e6
+          assert size < 200, f"model.json pesa {size:.0f} MB: demasiado para una función de Vercel"
+          m = LinearTextModel.load(p)
+          probs = m.predict_proba(["excelente servicio", "habitación sucia"])
+          assert all(abs(sum(x) - 1) < 1e-6 for x in probs)
+          met = json.load(open("model/metrics.json", encoding="utf-8"))
+          assert met["quality_gate"]["passed"], "El modelo versionado no pasó la compuerta de calidad"
+          print(f"OK: {size:.1f} MB · clases {m.classes} · macro-F1 {met['candidate']['test']['macro_f1']}")
+          PY

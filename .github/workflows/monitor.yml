@@ -1,0 +1,22 @@
+# Monitoreo (CRISP-ML(Q) fase 6): prueba de humo diaria contra la app desplegada.
+# Configure la variable de repositorio APP_URL (p. ej. https://traveler-insights.vercel.app).
+name: Monitor
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    if: vars.APP_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Salud de la API
+        run: curl -fsS "${{ vars.APP_URL }}/api/health" | tee health.json && grep -q '"model_loaded":true' health.json
+      - name: Predicción de control
+        run: |
+          curl -fsS -X POST "${{ vars.APP_URL }}/api/analyze" \
+            -H "Content-Type: application/json" \
+            -d '{"texts":["La habitación estaba sucia y el personal fue grosero"]}' | tee pred.json
+          grep -q '"clase"' pred.json

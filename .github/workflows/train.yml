@@ -1,0 +1,68 @@
+# Entrenamiento continuo (CRISP-ML(Q) fases 2–5).
+# Descarga los datos de Kaggle, ejecuta el pipeline con compuerta de calidad y,
+# si el modelo es aprobado, abre un Pull Request con model/ y reports/.
+# Fusionar ese PR (revisión humana) es lo que dispara el despliegue.
+name: Train
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Motivo del reentrenamiento (queda en el PR)"
+        required: true
+        default: "Reentrenamiento manual"
+  # schedule:
+  #   - cron: "0 6 1 * *"   # opcional: el día 1 de cada mes
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Instalar dependencias
+        run: pip install -e ".[train,dev]"
+      - name: Pruebas previas
+        run: pytest -q
+      - name: Descargar datos de Kaggle
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        run: |
+          mkdir -p data/raw
+          kaggle competitions download -c traveler-insights-uptc-2026 -p data/raw
+          cd data/raw && unzip -o '*.zip' && ls -la
+      - name: Pipeline CRISP-ML(Q)
+        id: pipeline
+        run: python -m traveler_insights.pipeline --config configs/params.yaml
+      - name: Resumen de evaluación
+        if: always()
+        run: |
+          if [ -f reports/evaluation.md ]; then cat reports/evaluation.md >> "$GITHUB_STEP_SUMMARY"; fi
+      - name: Guardar evidencias
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: training-run-${{ github.run_number }}
+          path: |
+            reports/
+            model/
+      - name: Abrir Pull Request con el modelo aprobado
+        if: success()
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: model/run-${{ github.run_number }}
+          commit-message: "model: reentrenamiento #${{ github.run_number }}"
+          title: "Modelo reentrenado #${{ github.run_number }}"
+          body-path: reports/evaluation.md
+          add-paths: |
+            model/
+            reports/
+          labels: model-update

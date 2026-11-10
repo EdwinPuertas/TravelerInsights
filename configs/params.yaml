@@ -1,0 +1,42 @@
+# Configuración del pipeline · Traveler Insights
+# Cada sección corresponde a una fase de CRISP-ML(Q). Cambiar un valor aquí
+# y volver a ejecutar el pipeline es la única forma válida de cambiar el modelo.
+
+seed: 42
+
+data:
+  train_path: data/raw/train.csv
+  text_col: null          # null = detección automática
+  label_col: null
+  test_size: 0.2          # partición de prueba, se usa una sola vez
+  # Requisitos de calidad de datos (fase 2). Si no se cumplen, el pipeline se detiene.
+  quality:
+    min_rows: 200
+    min_per_class: 20
+    max_duplicate_rate: 0.20
+    max_conflict_rate: 0.02   # textos idénticos con etiquetas distintas
+
+model:
+  word_ngram_range: [1, 2]
+  word_min_df: 2
+  char_ngram_range: [3, 5]
+  char_min_df: 3
+  sublinear_tf: true
+  C: 4.0
+  class_weight: balanced
+  max_iter: 2000
+
+evaluation:
+  cv_folds: 5
+  bootstrap_samples: 1000
+  calibration_bins: 10
+
+# Compuerta de calidad (fase 4). Si no se cumple, el modelo NO se exporta ni se despliega.
+quality_gate:
+  min_macro_f1: 0.50               # ajústelo al nivel aceptable para el negocio
+  must_beat_dummy_by: 0.10         # macro-F1 mínimo sobre el baseline trivial
+  max_regression_vs_production: 0.01  # tolerancia frente al modelo desplegado
+  max_parity_error: 0.0001         # diferencia máxima sklearn vs. modelo JSON
+
+serving:
+  tau: 0.70                         # umbral de confianza para automatizar
