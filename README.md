@@ -40,6 +40,7 @@ Esta tabla es el registro vivo del proyecto. Cada nueva funcionalidad se agrega 
 | 1.0 | Humano en el bucle: enrutamiento por umbral de confianza τ | 5 · Despliegue | `core/business.py` |
 | 1.0 | API FastAPI y app web (reseña individual, lote CSV, impacto, ficha del modelo) | 5 · Despliegue | `app.py`, `web/index.html` |
 | 1.0 | CI, entrenamiento continuo con PR, despliegue y monitoreo de salud | 6 · Operación | `.github/workflows/` |
+| 1.1 | Notebook del pipeline paso a paso: evaluación, pruebas de comportamiento sobre reseñas reales, exportación, integración con la API y deriva (PSI) con `test.csv` | 2–6 | `notebooks/TravelerInsights_Pipeline_CRISP-MLQ.ipynb` |
 
 **Siguientes funcionalidades sugeridas:** reemplazar el modelo por el Transformer afinado del proyecto integrador (sección 10), registro anónimo de predicciones para medir deriva y análisis de sentimiento por aspectos con un modelo.
 
@@ -111,7 +112,7 @@ TravelerInsights/
 │   └── pipeline.py             # orquesta las fases 2–5
 ├── tests/                      # pruebas automáticas (pytest)
 ├── docs/crisp-mlq/             # documentación por fase
-├── notebooks/                  # notebook docente de la semana 12
+├── notebooks/                  # pipeline CRISP-ML(Q) paso a paso + notebook docente de la semana 12
 ├── data/README.md              # cómo obtener los datos (no se versionan)
 ├── .github/workflows/          # ci · train · deploy · monitor
 ├── pyproject.toml              # dependencias: producción, entrenamiento y desarrollo
@@ -162,6 +163,9 @@ La salida muestra cada fase con ✔/✘. Revise:
 - `model/MODEL_CARD.md`: ficha del modelo aprobado.
 
 Si la compuerta rechaza el modelo, el comando termina con código 1 y **no** modifica `model/`. Mejore los datos o la configuración y repita.
+
+### 5.5 b · Recorrerlo en el notebook (opcional)
+Abra `notebooks/TravelerInsights_Pipeline_CRISP-MLQ.ipynb`. Ejecuta las mismas fases con gráficas y explicaciones, y agrega pruebas de comportamiento, integración con la API y medición de deriva. Con `GUARDAR_MODELO = False` no modifica `model/`.
 
 ### 5.6 Probar la app en su computador
 ```bash
