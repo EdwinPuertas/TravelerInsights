@@ -1,0 +1,40 @@
+{
+  "columns": {
+    "text": "Comentario",
+    "label": "Sitio"
+  },
+  "rows_raw": 818,
+  "rows_valid": 818,
+  "rows_final": 809,
+  "duplicate_rate": 0.011,
+  "conflict_rate": 0.0,
+  "class_distribution": {
+    "Tripadvisor": 610,
+    "Foursquare": 199
+  },
+  "imbalance_ratio": 3.07,
+  "checks": {
+    "min_rows": {
+      "passed": true,
+      "detail": "809 filas (mínimo 200)"
+    },
+    "min_per_class": {
+      "passed": true,
+      "detail": "clase menor con 199 ejemplos (mínimo 20)"
+    },
+    "max_duplicate_rate": {
+      "passed": true,
+      "detail": "duplicados 1.1% (máximo 20%)"
+    },
+    "max_conflict_rate": {
+      "passed": true,
+      "detail": "conflictos 0.0% (máximo 2%)"
+    },
+    "n_classes": {
+      "passed": true,
+      "detail": "2 clases"
+    }
+  },
+  "passed": true,
+  "data_sha256": "ab6775f3763794c66017af034831e5b4a38c73feb7afb8671db5b325553bdd0e"
+}

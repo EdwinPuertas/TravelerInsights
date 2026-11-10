@@ -1,0 +1,400 @@
+{
+  "baselines": {
+    "dummy_mayoritaria": {
+      "cv": {
+        "macro_f1_mean": 0.42995485282540874,
+        "macro_f1_std": 0.0009243159209029534,
+        "folds": [
+          0.4298,
+          0.4298,
+          0.4292,
+          0.4292,
+          0.4317
+        ]
+      },
+      "test": {
+        "accuracy": 0.7531,
+        "macro_f1": 0.4296,
+        "per_class": {
+          "Foursquare": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 40.0
+          },
+          "Tripadvisor": {
+            "precision": 0.7530864197530864,
+            "recall": 1.0,
+            "f1-score": 0.8591549295774648,
+            "support": 122.0
+          },
+          "accuracy": 0.7530864197530864,
+          "macro avg": {
+            "precision": 0.3765432098765432,
+            "recall": 0.5,
+            "f1-score": 0.4295774647887324,
+            "support": 162.0
+          },
+          "weighted avg": {
+            "precision": 0.5671391556165218,
+            "recall": 0.7530864197530864,
+            "f1-score": 0.647017909928708,
+            "support": 162.0
+          }
+        },
+        "confusion_matrix": {
+          "labels": [
+            "Foursquare",
+            "Tripadvisor"
+          ],
+          "matrix": [
+            [
+              0,
+              40
+            ],
+            [
+              0,
+              122
+            ]
+          ]
+        }
+      }
+    },
+    "tfidf_naive_bayes": {
+      "cv": {
+        "macro_f1_mean": 0.4611326196961968,
+        "macro_f1_std": 0.039655120247269825,
+        "folds": [
+          0.4298,
+          0.5213,
+          0.4292,
+          0.4292,
+          0.4962
+        ]
+      },
+      "test": {
+        "accuracy": 0.7593,
+        "macro_f1": 0.4555,
+        "per_class": {
+          "Foursquare": {
+            "precision": 1.0,
+            "recall": 0.025,
+            "f1-score": 0.04878048780487805,
+            "support": 40.0
+          },
+          "Tripadvisor": {
+            "precision": 0.7577639751552795,
+            "recall": 1.0,
+            "f1-score": 0.8621908127208481,
+            "support": 122.0
+          },
+          "accuracy": 0.7592592592592593,
+          "macro avg": {
+            "precision": 0.8788819875776397,
+            "recall": 0.5125,
+            "f1-score": 0.4554856502628631,
+            "support": 162.0
+          },
+          "weighted avg": {
+            "precision": 0.8175753393144698,
+            "recall": 0.7592592592592593,
+            "f1-score": 0.6613487571860407,
+            "support": 162.0
+          }
+        },
+        "confusion_matrix": {
+          "labels": [
+            "Foursquare",
+            "Tripadvisor"
+          ],
+          "matrix": [
+            [
+              1,
+              39
+            ],
+            [
+              0,
+              122
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "candidate": {
+    "cv": {
+      "macro_f1_mean": 0.9153520389627762,
+      "macro_f1_std": 0.0386630908718997,
+      "folds": [
+        0.9391,
+        0.8989,
+        0.848,
+        0.9575,
+        0.9333
+      ]
+    },
+    "test": {
+      "accuracy": 0.9568,
+      "macro_f1": 0.9424,
+      "per_class": {
+        "Foursquare": {
+          "precision": 0.9024390243902439,
+          "recall": 0.925,
+          "f1-score": 0.9135802469135802,
+          "support": 40.0
+        },
+        "Tripadvisor": {
+          "precision": 0.9752066115702479,
+          "recall": 0.9672131147540983,
+          "f1-score": 0.9711934156378601,
+          "support": 122.0
+        },
+        "accuracy": 0.9567901234567902,
+        "macro avg": {
+          "precision": 0.9388228179802459,
+          "recall": 0.9461065573770492,
+          "f1-score": 0.9423868312757202,
+          "support": 162.0
+        },
+        "weighted avg": {
+          "precision": 0.9572393060937038,
+          "recall": 0.9567901234567902,
+          "f1-score": 0.9569679418787786,
+          "support": 162.0
+        }
+      },
+      "confusion_matrix": {
+        "labels": [
+          "Foursquare",
+          "Tripadvisor"
+        ],
+        "matrix": [
+          [
+            37,
+            3
+          ],
+          [
+            4,
+            118
+          ]
+        ]
+      }
+    },
+    "bootstrap_ci_macro_f1": {
+      "low": 0.8949,
+      "high": 0.9828,
+      "samples": 1000
+    },
+    "mcnemar_vs_naive_bayes": {
+      "only_candidate_correct": 36,
+      "only_baseline_correct": 4,
+      "p_value": 0.0
+    },
+    "calibration": {
+      "ece": 0.0901,
+      "reliability": [
+        {
+          "bin": [
+            0.5,
+            0.6
+          ],
+          "n": 10,
+          "confidence": 0.5592,
+          "accuracy": 0.6
+        },
+        {
+          "bin": [
+            0.6,
+            0.7
+          ],
+          "n": 9,
+          "confidence": 0.6523,
+          "accuracy": 0.7778
+        },
+        {
+          "bin": [
+            0.7,
+            0.8
+          ],
+          "n": 20,
+          "confidence": 0.7535,
+          "accuracy": 0.95
+        },
+        {
+          "bin": [
+            0.8,
+            0.9
+          ],
+          "n": 36,
+          "confidence": 0.8531,
+          "accuracy": 1.0
+        },
+        {
+          "bin": [
+            0.9,
+            1.0
+          ],
+          "n": 87,
+          "confidence": 0.9559,
+          "accuracy": 1.0
+        }
+      ]
+    },
+    "tau_curve": [
+      {
+        "tau": 0.3,
+        "coverage": 1.0,
+        "accuracy_auto": 0.9568
+      },
+      {
+        "tau": 0.35,
+        "coverage": 1.0,
+        "accuracy_auto": 0.9568
+      },
+      {
+        "tau": 0.4,
+        "coverage": 1.0,
+        "accuracy_auto": 0.9568
+      },
+      {
+        "tau": 0.45,
+        "coverage": 1.0,
+        "accuracy_auto": 0.9568
+      },
+      {
+        "tau": 0.5,
+        "coverage": 1.0,
+        "accuracy_auto": 0.9568
+      },
+      {
+        "tau": 0.55,
+        "coverage": 0.9877,
+        "accuracy_auto": 0.9563
+      },
+      {
+        "tau": 0.6,
+        "coverage": 0.9383,
+        "accuracy_auto": 0.9803
+      },
+      {
+        "tau": 0.65,
+        "coverage": 0.9136,
+        "accuracy_auto": 0.9797
+      },
+      {
+        "tau": 0.7,
+        "coverage": 0.8827,
+        "accuracy_auto": 0.993
+      },
+      {
+        "tau": 0.75,
+        "coverage": 0.8333,
+        "accuracy_auto": 1.0
+      },
+      {
+        "tau": 0.8,
+        "coverage": 0.7593,
+        "accuracy_auto": 1.0
+      },
+      {
+        "tau": 0.85,
+        "coverage": 0.6605,
+        "accuracy_auto": 1.0
+      },
+      {
+        "tau": 0.9,
+        "coverage": 0.537,
+        "accuracy_auto": 1.0
+      },
+      {
+        "tau": 0.95,
+        "coverage": 0.3519,
+        "accuracy_auto": 1.0
+      }
+    ],
+    "by_length": {
+      "cortas": {
+        "n": 58,
+        "macro_f1": 0.9254
+      },
+      "medias": {
+        "n": 50,
+        "macro_f1": 0.7696
+      },
+      "largas": {
+        "n": 54,
+        "macro_f1": 1.0
+      }
+    }
+  },
+  "quality_gate": {
+    "checks": {
+      "min_macro_f1": {
+        "passed": true,
+        "detail": "macro-F1 0.9424 ≥ 0.5"
+      },
+      "beats_dummy": {
+        "passed": true,
+        "detail": "0.9424 − dummy 0.4296 ≥ 0.1"
+      },
+      "json_parity": {
+        "passed": true,
+        "detail": "error máx. 2.58e-07 ≤ 0.0001"
+      }
+    },
+    "passed": true
+  },
+  "run": {
+    "timestamp_utc": "2026-11-10T17:49:38+00:00",
+    "python": "3.12.16",
+    "sklearn": "1.9.1",
+    "config": {
+      "seed": 42,
+      "data": {
+        "train_path": "data/raw/train.csv",
+        "text_col": null,
+        "label_col": null,
+        "test_size": 0.2,
+        "quality": {
+          "min_rows": 200,
+          "min_per_class": 20,
+          "max_duplicate_rate": 0.2,
+          "max_conflict_rate": 0.02
+        }
+      },
+      "model": {
+        "word_ngram_range": [
+          1,
+          2
+        ],
+        "word_min_df": 2,
+        "char_ngram_range": [
+          3,
+          5
+        ],
+        "char_min_df": 3,
+        "sublinear_tf": true,
+        "C": 4.0,
+        "class_weight": "balanced",
+        "max_iter": 2000
+      },
+      "evaluation": {
+        "cv_folds": 5,
+        "bootstrap_samples": 1000,
+        "calibration_bins": 10
+      },
+      "quality_gate": {
+        "min_macro_f1": 0.5,
+        "must_beat_dummy_by": 0.1,
+        "max_regression_vs_production": 0.01,
+        "max_parity_error": 0.0001
+      },
+      "serving": {
+        "tau": 0.7
+      }
+    },
+    "data_sha256": "ab6775f3763794c66017af034831e5b4a38c73feb7afb8671db5b325553bdd0e",
+    "n_train": 647,
+    "n_test": 162
+  }
+}
