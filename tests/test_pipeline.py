@@ -10,6 +10,7 @@ def _cfg(tmp_path, csv, **gate):
     with open("configs/params.yaml", encoding="utf-8") as f:
         cfg = yaml.safe_load(f)
     cfg["data"]["train_path"] = str(csv)
+    cfg["data"].update({"text_col": "review", "label_col": "label"})
     cfg["data"]["quality"].update({"min_rows": 50, "min_per_class": 5})
     cfg["model"].update({"word_min_df": 1, "char_min_df": 1})
     cfg["evaluation"].update({"cv_folds": 3, "bootstrap_samples": 50})
