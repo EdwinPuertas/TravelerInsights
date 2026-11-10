@@ -139,8 +139,9 @@ pytest -q                     # todo debe pasar antes de empezar
 ```
 
 ### 5.3 Obtener los datos
-1. En Kaggle: *Settings → API → Create New Token*. Se descarga `kaggle.json`.
-2. Guárdelo en `~/.kaggle/kaggle.json` (Windows: `C:\Users\<usuario>\.kaggle\kaggle.json`).
+1. En https://www.kaggle.com/settings, sección **API Tokens**, pulse **Generate New Token** y copie el token (empieza por `KGAT_`).
+2. Guárdelo en `~/.kaggle/access_token` (Windows: `C:\Users\<usuario>\.kaggle\access_token`) o en la variable de entorno `KAGGLE_API_TOKEN`.
+   *Alternativa antigua:* **Create Legacy API Key** descarga `kaggle.json`; guárdelo en `~/.kaggle/kaggle.json`.
 3. Descargue y descomprima:
 ```bash
 kaggle competitions download -c traveler-insights-uptc-2026 -p data/raw
@@ -200,8 +201,8 @@ En GitHub: *Settings → Secrets and variables → Actions*.
 
 | Tipo | Nombre | Valor | Para |
 |---|---|---|---|
-| Secret | `KAGGLE_USERNAME` | su usuario de Kaggle | `train.yml` |
-| Secret | `KAGGLE_KEY` | la clave de `kaggle.json` | `train.yml` |
+| Secret | `KAGGLE_API_TOKEN` | token de *kaggle.com/settings → API Tokens → Generate New Token* (empieza por `KGAT_`) | `train.yml` (recomendado) |
+| Secret *(alternativa)* | `KAGGLE_USERNAME` y `KAGGLE_KEY` | usuario y `key` de `kaggle.json` (*Create Legacy API Key*) | `train.yml` |
 | Variable | `APP_URL` | URL de producción de Vercel, sin `/` final | `monitor.yml` |
 | Variable *(opcional)* | `DEPLOY_WITH_ACTIONS` | `true` | `deploy.yml` |
 | Secret *(opcional)* | `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | ver sección 7.3 | `deploy.yml` |

@@ -33,6 +33,9 @@ jobs:
         run: pytest -q
       - name: Descargar datos de Kaggle
         env:
+          # Opción recomendada: token nuevo de Kaggle (KGAT_...)
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+          # Opción alternativa: clave antigua (kaggle.json)
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
         run: |
