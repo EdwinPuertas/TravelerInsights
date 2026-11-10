@@ -5,6 +5,8 @@
 El proyecto se desarrolla con la metodología **CRISP-ML(Q)** y se opera con prácticas de **MLOps en GitHub Actions**. El modelo se entrena con scikit-learn, pasa una compuerta de calidad, se exporta a un formato liviano y se despliega como app web en **Vercel**.
 
 > Proyecto docente del curso de Procesamiento de Lenguaje Natural, basado en la competencia de Kaggle *Traveler Insights UPTC 2026*.
+>
+> 📄 **Guía completa en PDF:** [`docs/Guia_TravelerInsights_v1.2.pdf`](docs/Guia_TravelerInsights_v1.2.pdf) · App: https://traveler-insights.vercel.app
 
 ---
 
