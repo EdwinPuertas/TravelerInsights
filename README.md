@@ -44,6 +44,7 @@ Esta tabla es el registro vivo del proyecto. Cada nueva funcionalidad se agrega 
 | 1.0 | CI, entrenamiento continuo con PR, despliegue y monitoreo de salud | 6 · Operación | `.github/workflows/` |
 | 1.1 | Notebook del pipeline paso a paso: evaluación, pruebas de comportamiento sobre reseñas reales, exportación, integración con la API y deriva (PSI) con `test.csv` | 2–6 | `notebooks/TravelerInsights_Pipeline_CRISP-MLQ.ipynb` |
 | 1.2 | Rasgos léxicos de los modelos anteriores del curso (léxico de `lexical_features.py` de courseNLP: pronombres, adverbios de negación/tiempo/lugar/modo/cantidad, adjetivos, personas, odio y estadísticas de palabras), con 4 correcciones documentadas, unidos al TF-IDF y evaluados por ablación (con vs. sin léxico) | 3–5 | `core/lexical.py`, `ml/lexical.py`, `params.yaml › model.lexical_features` |
+| 1.3 | Notebook **independiente** (sin API de Kaggle ni módulos del repo): modelo base TF-IDF + léxico → word embeddings FastText → Transformer BETO, con las 6 fases de CRISP-ML(Q), comparación justa (bootstrap, McNemar, calibración, costo), compuerta y despliegue (FastAPI, Docker/Hugging Face Spaces) | 1–6 | `notebooks/TravelerInsights_TFIDF_Embeddings_Transformer_CRISP-MLQ.ipynb` |
 
 **Siguientes funcionalidades sugeridas:** reemplazar el modelo por el Transformer afinado del proyecto integrador (sección 10), registro anónimo de predicciones para medir deriva y análisis de sentimiento por aspectos con un modelo.
 
