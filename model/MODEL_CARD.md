@@ -8,4 +8,4 @@
 - **Usos no previstos:** decisiones automáticas sobre personas, reseñas en otros idiomas o dominios.
 - **Limitaciones:** ironía, negación y reseñas mixtas; el léxico de aspectos no cubre todo; el desempeño puede degradarse con la deriva de los datos.
 - **Responsabilidad:** las reseñas pueden contener datos personales; no se almacenan en la API.
-- **Generado:** 2026-11-11T02:44:52+00:00 con scikit-learn 1.9.1.
+- **Generado:** 2026-11-11T03:05:36+00:00 con scikit-learn 1.9.1.
