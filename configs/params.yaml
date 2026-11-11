@@ -22,8 +22,9 @@ data:
   # Retroalimentación humana exportada de la app (workflow Train). Solo se agrega al entrenamiento.
   feedback_path: data/feedback/feedback.csv
   # Reseñas REALES de otros corpus (scripts/fetch_external.py). Solo entran al entrenamiento.
-  external:
-    - data/external/opener_es.csv
+  # Experimento 2026-11-11: OpeNER-es (225 negativas) bajó macro-F1 a 0.645 → desactivado. Para activarlo:
+  #   external: [data/external/opener_es.csv]
+  external: []
   # Requisitos de calidad de datos (fase 2). Si no se cumplen, el pipeline se detiene.
   quality:
     min_rows: 200
@@ -45,7 +46,8 @@ model:
   # Balanceo dentro del entrenamiento (cada pliegue): el objetivo por clase es el promedio de las
   # dos clases menores; las mayores se submuestrean y las menores se completan con SMOTE.
   #   none | smote_mean_two_smallest
-  resampling: smote_mean_two_smallest
+  # Experimento 2026-11-11 (OOF 5×5): con SMOTE + externos macro-F1 0.615 vs 0.747 sin ellos → rechazado por la compuerta.
+  resampling: none
   max_iter: 2000
 
 evaluation:
