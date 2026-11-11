@@ -67,3 +67,16 @@ def test_particion_balanceada_soporte_igual():
     import pytest
     with pytest.raises(ValueError):
         particion_balanceada(y, 5, 0)          # más de la mitad de la clase menor
+
+
+def test_predicciones_oof_cubren_todo():
+    import numpy as np
+    from sklearn.dummy import DummyClassifier
+
+    from traveler_insights.ml.evaluate import oof_repetido, predicciones_oof
+    X = np.array([f"t{i}" for i in range(40)], dtype=object)
+    y = np.array(["a"] * 30 + ["b"] * 10, dtype=object)
+    p = predicciones_oof(DummyClassifier(strategy="most_frequent"), X, y, 5, 0, ["fb"], ["b"])
+    assert len(p) == 40 and all(v in ("a", "b") for v in p)
+    r = oof_repetido(DummyClassifier(strategy="most_frequent"), X, y, 5, 3, 0)
+    assert r["repeticiones"] == 3 and abs(r["micro_f1_mean"] - 0.75) < 1e-9

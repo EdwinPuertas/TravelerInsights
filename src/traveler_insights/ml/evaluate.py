@@ -92,6 +92,41 @@ def metricas_prueba(y_true, y_pred, clases) -> dict:
     }
 
 
+def predicciones_oof(modelo, X, y, folds: int, seed: int, X_extra=None, y_extra=None, proba: bool = False):
+    """Predicciones fuera de pliegue (out-of-fold): cada reseña la predice un modelo que no la vio.
+
+    Así el soporte de la evaluación es el dataset completo. La retroalimentación humana
+    (`X_extra`, `y_extra`) se suma solo a los pliegues de entrenamiento.
+    """
+    X, y = np.asarray(X, dtype=object), np.asarray(y)
+    Xe = np.asarray([] if X_extra is None else X_extra, dtype=object)
+    ye = np.asarray([] if y_extra is None else y_extra, dtype=y.dtype if len(y) else object)
+    pred = np.empty(len(y), dtype=object)
+    prob, clases = None, None
+    for tr, te in StratifiedKFold(n_splits=folds, shuffle=True, random_state=seed).split(X, y):
+        m = clone(modelo).fit(np.concatenate([X[tr], Xe]), np.concatenate([y[tr], ye]))
+        pred[te] = m.predict(X[te])
+        if proba:
+            clases = m.classes_
+            if prob is None:
+                prob = np.zeros((len(y), len(clases)))
+            prob[te] = m.predict_proba(X[te])
+    return (pred, prob, clases) if proba else pred
+
+
+def oof_repetido(modelo, X, y, folds: int, repeticiones: int, seed: int, X_extra=None, y_extra=None) -> dict:
+    """macro-F1 y micro-F1 de las predicciones fuera de pliegue en varias semillas."""
+    ma, mi = [], []
+    for r in range(repeticiones):
+        p = predicciones_oof(modelo, X, y, folds, seed + r, X_extra, y_extra)
+        ma.append(f1_score(y, p, average="macro"))
+        mi.append(f1_score(y, p, average="micro"))
+    ma, mi = np.array(ma), np.array(mi)
+    return {"repeticiones": repeticiones, "folds": folds,
+            "macro_f1_mean": round(float(ma.mean()), 4), "macro_f1_std": round(float(ma.std(ddof=1)) if len(ma) > 1 else 0.0, 4),
+            "micro_f1_mean": round(float(mi.mean()), 4), "macro_f1_runs": [round(float(v), 4) for v in ma]}
+
+
 def particion_balanceada(y, por_clase: int, seed: int):
     """Índices (train, test) con el MISMO número de ejemplos por clase en la prueba.
 
@@ -111,6 +146,9 @@ def particion_balanceada(y, por_clase: int, seed: int):
 
 def esquema_particion(cfg: dict) -> dict:
     d = cfg["data"]
+    if d.get("test_split") == "cv":
+        e = cfg["evaluation"]
+        return {"test_split": "cv", "folds": int(e["cv_folds"]), "repeats": int(e.get("cv_repeats", 1)), "seed": cfg["seed"]}
     if d.get("test_split", "stratified") == "balanced":
         return {"test_split": "balanced", "test_per_class": int(d["test_per_class"]), "seed": cfg["seed"]}
     return {"test_split": "stratified", "test_size": d["test_size"], "seed": cfg["seed"]}
@@ -147,6 +185,12 @@ def compuerta(resultado: dict, gate: dict, produccion: dict | None, esquema: dic
         "min_macro_f1": (f1 >= gate["min_macro_f1"], f"macro-F1 {f1:.4f} ≥ {gate['min_macro_f1']}"),
         "beats_dummy": (f1 - dummy >= gate["must_beat_dummy_by"], f"{f1:.4f} − dummy {dummy:.4f} ≥ {gate['must_beat_dummy_by']}"),
     }
+    oof = resultado["candidate"].get("oof_repeated")
+    if oof:
+        m = oof["macro_f1_mean"]
+        checks["min_macro_f1_repetido"] = (m >= gate["min_macro_f1"],
+                                           f"media {m:.4f} ± {oof['macro_f1_std']:.4f} en {oof['repeticiones']} repeticiones "
+                                           f"de {oof['folds']} pliegues ≥ {gate['min_macro_f1']}")
     rep = resultado["candidate"].get("repeated_balanced")
     if rep:
         m = rep["modelos"]["candidate"]["macro_f1_mean"]

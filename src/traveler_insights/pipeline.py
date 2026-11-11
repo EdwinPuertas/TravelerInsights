@@ -65,7 +65,11 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
         return 1
 
     esquema = ev.esquema_particion(cfg)
-    if esquema["test_split"] == "balanced":
+    if esquema["test_split"] == "cv":
+        # Evaluación fuera de pliegue: todo el dataset es "prueba" una vez (soporte = conteo real por clase)
+        X_tr = X_te = d["texto"].reset_index(drop=True)
+        y_tr = y_te = d["etiqueta"].reset_index(drop=True)
+    elif esquema["test_split"] == "balanced":
         # Prueba con el mismo soporte por clase: el macro-F1 y el micro-F1 no quedan dominados por "neutral"
         i_tr, i_te = ev.particion_balanceada(d["etiqueta"].values, esquema["test_per_class"], seed)
         X_tr, X_te = d["texto"].iloc[i_tr].reset_index(drop=True), d["texto"].iloc[i_te].reset_index(drop=True)
@@ -75,7 +79,7 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
                                                   stratify=d["etiqueta"], random_state=seed)
     d_orig = d
     fb_X, fb_y = pd.Series(dtype=object), pd.Series(dtype=object)
-    print(f"      partición {esquema['test_split']}: entrenamiento {len(X_tr)} · prueba {len(X_te)} "
+    print(f"      partición {esquema['test_split']}: entrenamiento {len(X_tr)} · evaluación {len(X_te)} "
           f"{y_te.value_counts().to_dict()}")
 
     # ---------------------------------------------------------------- 1b. retroalimentación humana
@@ -88,7 +92,7 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
         fbd = fbd[fbd["clase_correcta"].isin(set(d["etiqueta"]))]
         fbd["_n"] = fbd["texto"].map(_norm)
         fbd = fbd.drop_duplicates("_n", keep="first")                     # la más reciente primero
-        prueba = set(X_te.map(_norm))
+        prueba = set(X_te.map(_norm))     # en modo cv: todo el dataset
         fbd = fbd[~fbd["_n"].isin(prueba)]
         fbd = fbd[~fbd["_n"].isin(set(X_tr.map(_norm)))]                  # no duplicar lo que ya está
         fb_X, fb_y = fbd["texto"], fbd["clase_correcta"]
@@ -106,11 +110,24 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
     modelos = {**baselines(p), "candidate": modelo_candidato(p)}
     res = {"baselines": {}, "candidate": {}}
     preds = {}
+    modo_cv = esquema["test_split"] == "cv"
+    oof_proba = None
     for nombre, m in modelos.items():
-        cv = ev.validacion_cruzada(m, X_tr, y_tr, folds, seed)
-        m.fit(X_tr, y_tr)
-        preds[nombre] = m.predict(X_te)
+        if modo_cv:
+            rep = ev.oof_repetido(m, d_orig["texto"], d_orig["etiqueta"], folds, esquema["repeats"], seed, fb_X, fb_y)
+            cv = {"macro_f1_mean": rep["macro_f1_mean"], "macro_f1_std": rep["macro_f1_std"], "folds": rep["macro_f1_runs"]}
+            if nombre == "candidate":
+                preds[nombre], oof_proba, _cl = ev.predicciones_oof(m, X_te, y_te, folds, seed, fb_X, fb_y, proba=True)
+            else:
+                preds[nombre] = ev.predicciones_oof(m, X_te, y_te, folds, seed, fb_X, fb_y)
+            m.fit(X_tr, y_tr)
+        else:
+            cv = ev.validacion_cruzada(m, X_tr, y_tr, folds, seed)
+            m.fit(X_tr, y_tr)
+            preds[nombre] = m.predict(X_te)
         bloque = {"cv": cv, "test": ev.metricas_prueba(y_te, preds[nombre], m.classes_)}
+        if modo_cv:
+            bloque["oof_repeated"] = rep
         (res["candidate"] if nombre == "candidate" else res["baselines"].setdefault(nombre, {})).update(bloque)
         print(f"      {nombre:20s} CV macro-F1 {cv['macro_f1_mean']:.4f} ± {cv['macro_f1_std']:.4f}"
               f" | prueba {bloque['test']['macro_f1']:.4f}")
@@ -118,7 +135,7 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
     # ---------------------------------------------------------------- 3. evaluación
     print("[3/5] Evaluación del candidato")
     cand = modelos["candidate"]
-    proba = cand.predict_proba(X_te)
+    proba = oof_proba if modo_cv else cand.predict_proba(X_te)
     e = cfg["evaluation"]
     res["candidate"]["bootstrap_ci_macro_f1"] = ev.bootstrap_ic(y_te, preds["candidate"], e["bootstrap_samples"], seed)
     res["candidate"]["mcnemar_vs_naive_bayes"] = ev.mcnemar(y_te, preds["candidate"], preds["tfidf_naive_bayes"])
@@ -197,6 +214,12 @@ def informe(res: dict, calidad: dict) -> str:
     clases_pc = [k for k in pc if k not in ("accuracy", "macro avg", "weighted avg")]
     tabla_pc = "\n".join(f"| {k} | {pc[k]['precision']:.3f} | {pc[k]['recall']:.3f} | {pc[k]['f1-score']:.3f} | {int(pc[k]['support'])} |"
                          for k in clases_pc)
+    esq = res["run"]["split"]
+    esq_txt = (f"fuera de pliegue (validación cruzada estratificada, {esq['folds']} pliegues × {esq['repeats']} repeticiones; "
+               "cada reseña se predice con un modelo que no la vio)") if esq["test_split"] == "cv" else f"partición {esq['test_split']}"
+    if c.get("oof_repeated"):
+        o = c["oof_repeated"]
+        esq_txt += f" · macro-F1 {o['macro_f1_mean']} ± {o['macro_f1_std']} · micro-F1 {o['micro_f1_mean']}"
     rep_txt = ""
     if c.get("repeated_balanced"):
         rb = c["repeated_balanced"]
@@ -207,7 +230,7 @@ def informe(res: dict, calidad: dict) -> str:
 
 Generado: {res['run']['timestamp_utc']} · datos `{calidad['data_sha256'][:12]}` · entrenamiento {res['run']['n_train']} (incluye {calidad.get('feedback', {}).get('rows_added', 0)} de retroalimentación humana) · prueba {res['run']['n_test']}
 
-**Partición de prueba:** {res['run']['split']['test_split']} · soporte por clase {res['run']['test_support']}
+**Evaluación:** {esq_txt} · soporte por clase {res['run']['test_support']}
 {rep_txt}
 **Candidato en prueba:** macro-F1 {c['test']['macro_f1']} · micro-F1 {c['test'].get('micro_f1', c['test']['accuracy'])} (= exactitud)
 

@@ -11,10 +11,12 @@ data:
   # columna de pocas categorías (p. ej. "Sitio": Tripadvisor/Foursquare).
   text_col: Comentario
   label_col: Sentimiento
-  # Partición de prueba (se usa una sola vez).
-  #   balanced   → el mismo número de reseñas por clase (soporte balanceado); el resto va a entrenamiento
-  #   stratified → conserva la proporción original de clases (usa test_size)
-  test_split: balanced
+  # Esquema de evaluación.
+  #   cv         → predicciones fuera de pliegue: cada reseña se evalúa con un modelo que no la vio.
+  #                El soporte es el dataset completo (630 neutral, 157 positivo, 22 negativo).
+  #   balanced   → prueba con el mismo número de reseñas por clase (test_per_class); el resto entrena
+  #   stratified → prueba que conserva la proporción de clases (test_size)
+  test_split: cv
   test_per_class: 7       # ≤ mitad de la clase menor (negativo); 7 × 3 clases = 21 reseñas de prueba
   test_size: 0.2
   # Retroalimentación humana exportada de la app (workflow Train). Solo se agrega al entrenamiento.
@@ -41,6 +43,7 @@ model:
 
 evaluation:
   cv_folds: 5
+  cv_repeats: 5           # repeticiones de la validación cruzada con semillas distintas (variabilidad)
   bootstrap_samples: 1000
   calibration_bins: 10
   balanced_repeats: 30    # particiones balanceadas adicionales para estimar la variabilidad del macro-F1
