@@ -85,6 +85,7 @@ def metricas_prueba(y_true, y_pred, clases) -> dict:
     return {
         "accuracy": round(float(accuracy_score(y_true, y_pred)), 4),
         "macro_f1": round(float(f1_score(y_true, y_pred, average="macro")), 4),
+        "micro_f1": round(float(f1_score(y_true, y_pred, average="micro")), 4),   # = exactitud (una etiqueta)
         "per_class": classification_report(y_true, y_pred, output_dict=True, zero_division=0),
         "confusion_matrix": {"labels": list(clases),
                              "matrix": confusion_matrix(y_true, y_pred, labels=list(clases)).tolist()},

@@ -12,3 +12,7 @@
 - [ ] CI en verde (pruebas de paridad, API y contrato del modelo).
 - [ ] Vista previa de Vercel revisada en el PR.
 - [ ] `MODEL_CARD.md` actualizado.
+
+## v1.4 · Historial, emociones y spaCy
+- `/api/analyze` agrega el perfil de emociones (léxico SEL + NRC) y guarda la reseña en el historial (Upstash Redis).
+- La app muestra NER y árbol de dependencias con displaCy a través de un servicio en Hugging Face Spaces (`services/spacy-displacy`), porque spaCy no cabe en una función de Vercel.

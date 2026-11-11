@@ -42,3 +42,31 @@ def test_sin_modelo(tmp_path, monkeypatch):
     assert TestClient(api.app).get("/api/model").status_code == 503
     api.modelo.cache_clear()
     assert isinstance(LinearTextModel, type)
+
+
+def test_historial_feedback_con_store_simulado(tmp_path, monkeypatch, df_multi, params):
+    from traveler_insights.core import store
+    c = _cliente(tmp_path, monkeypatch, df_multi, params)
+    mem = {"h": [], "f": []}
+    monkeypatch.setattr(store, "configurado", lambda: True)
+    monkeypatch.setattr(store, "guardar_historial", lambda r: mem["h"].insert(0, r))
+    monkeypatch.setattr(store, "historial", lambda limite=50: mem["h"][:limite])
+    monkeypatch.setattr(store, "guardar_feedback", lambda r: mem["f"].insert(0, r))
+    monkeypatch.setattr(store, "feedback", lambda: mem["f"])
+    r = c.post("/api/analyze", json={"texts": ["la habitación sucia y el personal grosero"]}).json()
+    assert r["stored"] and "emociones" in r["results"][0]
+    assert c.get("/api/history").json()["items"][0]["texto"].startswith("la habitación")
+    res = r["results"][0]
+    ok = c.post("/api/feedback", json={"texto": res["texto"], "clase_predicha": res["clase"], "clase_correcta": "negativo",
+                                      "respuesta_sugerida": res["respuesta_sugerida"],
+                                      "respuesta_editada": "Lamentamos lo ocurrido, te contactaremos."}).json()
+    assert ok["stored"] and "bleu" in ok["registro"]["metricas_respuesta"]
+    st = c.get("/api/feedback/stats").json()
+    assert st["n_etiquetados"] == 1 and "micro_f1" in st
+    assert c.post("/api/feedback", json={"texto": "x", "clase_predicha": "a", "clase_correcta": "inventada"}).status_code == 422
+
+
+def test_stats_locales_sin_store(tmp_path, monkeypatch, df_multi, params):
+    c = _cliente(tmp_path, monkeypatch, df_multi, params)
+    st = c.post("/api/feedback/stats", json={"items": [{"clase_predicha": "neutro", "clase_correcta": "neutro"}]}).json()
+    assert st["micro_f1"] == 1.0

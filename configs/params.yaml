@@ -12,6 +12,8 @@ data:
   text_col: Comentario
   label_col: Sentimiento
   test_size: 0.2          # partición de prueba, se usa una sola vez
+  # Retroalimentación humana exportada de la app (workflow Train). Solo se agrega al entrenamiento.
+  feedback_path: data/feedback/feedback.csv
   # Requisitos de calidad de datos (fase 2). Si no se cumplen, el pipeline se detiene.
   quality:
     min_rows: 200

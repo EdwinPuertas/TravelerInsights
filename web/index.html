@@ -8,39 +8,44 @@
   :root { --red:#C10230; --ink:#222222; --gray:#6F7271; --line:#D3D4DF; --soft:#F4F5F6; --pink:#FBE6EB; --ok:#1E7B4A; }
   * { box-sizing: border-box; }
   body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color:var(--ink); background:#fff; }
-  header { padding:28px 32px 8px; max-width:1100px; margin:auto; }
+  header { padding:28px 32px 8px; max-width:1150px; margin:auto; }
   h1 { color:var(--red); margin:0 0 4px; font-size:30px; }
+  h3 { margin:22px 0 8px; }
   .sub { color:var(--gray); margin:0; }
-  main { max-width:1100px; margin:auto; padding:8px 32px 48px; }
-  nav { display:flex; gap:6px; margin:18px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
-  nav button { background:none; border:none; padding:10px 14px; font-size:15px; color:var(--gray); cursor:pointer; border-bottom:3px solid transparent; }
+  main { max-width:1150px; margin:auto; padding:8px 32px 48px; }
+  nav { display:flex; gap:4px; margin:18px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  nav button { background:none; border:none; padding:10px 13px; font-size:15px; color:var(--gray); cursor:pointer; border-bottom:3px solid transparent; }
   nav button.on { color:var(--red); border-bottom-color:var(--red); font-weight:600; }
   section { display:none; } section.on { display:block; }
-  textarea, input[type=number], select { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font:inherit; }
-  textarea { min-height:120px; resize:vertical; }
+  textarea, input[type=number], select, input[type=text] { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font:inherit; }
+  textarea { min-height:110px; resize:vertical; }
   .btn { background:var(--red); color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:15px; cursor:pointer; margin-top:10px; }
-  .btn:disabled { opacity:.5; cursor:default; }
-  .btn.sec { background:var(--ink); }
-  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin:16px 0; }
-  .card { background:var(--soft); border-radius:12px; padding:16px; }
-  .card.warn { background:var(--pink); }
-  .k { color:var(--gray); font-size:13px; } .v { font-size:26px; font-weight:700; color:var(--ink); margin-top:4px; }
+  .btn:disabled { opacity:.5; cursor:default; } .btn.sec { background:var(--ink); } .btn.light { background:#fff; color:var(--ink); border:1px solid var(--line); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin:16px 0; }
+  .card { background:var(--soft); border-radius:12px; padding:16px; } .card.warn { background:var(--pink); }
+  .k { color:var(--gray); font-size:13px; } .v { font-size:24px; font-weight:700; margin-top:4px; }
   .tag { display:inline-block; background:#fff; border:1px solid var(--line); border-radius:999px; padding:2px 10px; margin:2px; font-size:13px; }
-  table { width:100%; border-collapse:collapse; font-size:14px; margin-top:12px; }
+  .chip { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:6px 14px; margin:3px; cursor:pointer; background:#fff; font-size:14px; }
+  .chip.sel { background:var(--red); color:#fff; border-color:var(--red); }
+  table { width:100%; border-collapse:collapse; font-size:14px; margin-top:10px; }
   th { background:var(--red); color:#fff; text-align:left; padding:8px; position:sticky; top:0; }
   td { border-bottom:1px solid var(--line); padding:8px; vertical-align:top; }
   .scroll { max-height:460px; overflow:auto; border:1px solid var(--line); border-radius:8px; }
   .auto { color:var(--ok); font-weight:600; } .human { color:var(--red); font-weight:600; }
   .row { display:flex; gap:12px; align-items:end; flex-wrap:wrap; } .row > div { flex:1; min-width:160px; }
-  .note { color:var(--gray); font-size:13px; }
-  .err { color:var(--red); }
+  .note { color:var(--gray); font-size:13px; } .err { color:var(--red); } .okmsg { color:var(--ok); font-weight:600; }
   label { font-size:14px; color:var(--gray); }
+  .bars { display:grid; grid-template-columns:110px 1fr 46px; gap:6px 10px; align-items:center; font-size:14px; }
+  .bar { height:14px; background:var(--soft); border-radius:7px; overflow:hidden; } .bar > i { display:block; height:100%; background:var(--red); }
+  .panel { border:1px solid var(--line); border-radius:12px; padding:16px; margin-top:16px; }
+  .displacy { overflow:auto; border:1px solid var(--line); border-radius:8px; padding:8px; background:#fff; }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:16px; } @media (max-width:800px){ .two { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
 <header>
   <h1>Traveler Insights</h1>
-  <p class="sub">Clasificación de reseñas · aspectos · respuesta sugerida · humano en el bucle</p>
+  <p class="sub">Sentimiento · emociones · aspectos · respuesta sugerida · humano en el bucle · retroalimentación</p>
 </header>
 <main>
   <div class="row">
@@ -49,20 +54,43 @@
     <div class="note" id="estado">Cargando modelo…</div>
   </div>
   <nav>
-    <button class="on" data-t="uno">Reseña individual</button>
+    <button class="on" data-t="uno">Reseña</button>
+    <button data-t="hist">Historial</button>
+    <button data-t="fb">Retroalimentación</button>
     <button data-t="lote">Lote (CSV)</button>
     <button data-t="impacto">Impacto</button>
     <button data-t="modelo">Sobre el modelo</button>
   </nav>
 
+  <!-- ============================== RESEÑA -->
   <section id="uno" class="on">
     <textarea id="texto" placeholder="Escribe o pega una reseña de un viajero…"></textarea>
     <button class="btn" id="analizar">Analizar</button>
     <div id="res1"></div>
   </section>
 
+  <!-- ============================== HISTORIAL -->
+  <section id="hist">
+    <div class="row"><div class="note" id="histNota"></div>
+      <div style="flex:0"><button class="btn light" id="histRefrescar">Refrescar</button></div></div>
+    <div class="grid" id="histKpi"></div>
+    <div class="scroll"><table id="histTabla"></table></div>
+  </section>
+
+  <!-- ============================== RETROALIMENTACIÓN -->
+  <section id="fb">
+    <p class="note">Cada corrección humana es una etiqueta nueva. El workflow <b>Train</b> la agrega al entrenamiento (nunca a la prueba)
+      y el nuevo modelo solo se despliega si pasa la compuerta de calidad. Es <b>aprendizaje con retroalimentación humana</b> (humano en el bucle).
+      No es RLHF en sentido estricto: aquí no se entrena un modelo de recompensa ni se usa aprendizaje por refuerzo.</p>
+    <div class="row"><div class="note" id="fbNota"></div>
+      <div style="flex:0;display:flex;gap:8px"><button class="btn light" id="fbRefrescar">Refrescar</button>
+      <button class="btn sec" id="fbExportar">Exportar CSV</button></div></div>
+    <div id="fbStats"></div>
+  </section>
+
+  <!-- ============================== LOTE -->
   <section id="lote">
-    <p class="note">El archivo se lee en tu navegador y se envía a la API en bloques de 200 reseñas. No se guarda.</p>
+    <p class="note">El archivo se lee en tu navegador y se envía a la API en bloques de 200 reseñas. Los lotes no se guardan en el historial.</p>
     <input type="file" id="csv" accept=".csv">
     <div class="row" style="margin-top:10px"><div><label>Columna de texto</label><select id="col"></select></div></div>
     <button class="btn" id="procesar" disabled>Procesar</button>
@@ -70,8 +98,9 @@
     <div id="resLote"></div>
   </section>
 
+  <!-- ============================== IMPACTO -->
   <section id="impacto">
-    <p class="note">La curva viene de la partición de prueba del entrenamiento. Los supuestos de costo son <b>ilustrativos</b>: reemplázalos con datos de la organización.</p>
+    <p class="note">La curva viene de la partición de prueba del entrenamiento. Los supuestos de costo son <b>ilustrativos</b>.</p>
     <div id="curva"></div>
     <div class="grid">
       <div><label>Reseñas por mes</label><input type="number" id="vol" value="3000"></div>
@@ -82,19 +111,31 @@
     <div class="grid" id="kpis"></div>
   </section>
 
+  <!-- ============================== MODELO -->
   <section id="modelo"><div id="info"></div></section>
 </main>
 
 <script>
 const $ = s => document.querySelector(s);
-let MODEL = null, filas = [], resultados = [];
+let MODEL = null, CONFIG = {store:false, spacy_url:""}, filas = [], resultados = [], ULTIMO = null;
+const EMO_ES = {alegria:"Alegría", confianza:"Confianza", expectativa:"Expectativa", sorpresa:"Sorpresa",
+                tristeza:"Tristeza", miedo:"Miedo", enojo:"Enojo", disgusto:"Disgusto"};
 const tau = () => parseFloat($("#tau").value);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = v => (v === null || v === undefined) ? "—" : (typeof v === "number" ? v.toFixed(3) : v);
 $("#tau").oninput = () => { $("#tauv").textContent = tau().toFixed(2); impacto(); };
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   document.querySelectorAll("nav button, section").forEach(e => e.classList.remove("on"));
   b.classList.add("on"); $("#" + b.dataset.t).classList.add("on");
+  if (b.dataset.t === "hist") cargarHistorial();
+  if (b.dataset.t === "fb") cargarFeedback();
 });
-const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+// ---------- almacenamiento local (respaldo si no hay Upstash)
+const LS = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch { return []; } },
+  push(k, v, max = 500) { try { const a = LS.get(k); a.unshift(v); localStorage.setItem(k, JSON.stringify(a.slice(0, max))); } catch {} }
+};
 
 async function api(path, body) {
   const r = await fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {});
@@ -105,32 +146,157 @@ async function api(path, body) {
 
 async function cargar() {
   try {
-    MODEL = await api("/api/model");
+    [MODEL, CONFIG] = await Promise.all([api("/api/model"), api("/api/config").catch(() => CONFIG)]);
     if (MODEL.metadata && MODEL.metadata.tau) { $("#tau").value = MODEL.metadata.tau; $("#tauv").textContent = (+MODEL.metadata.tau).toFixed(2); }
-    const f1 = MODEL.evaluation ? MODEL.evaluation.test_macro_f1.toFixed(3) : "—";
-    $("#estado").textContent = `Modelo cargado · clases: ${MODEL.classes.join(", ")} · macro-F1 prueba ${f1}`;
+    const e = MODEL.evaluation || {};
+    $("#estado").innerHTML = `Modelo cargado · clases: ${MODEL.classes.join(", ")} · macro-F1 ${fmt(e.test_macro_f1)} · micro-F1 ${fmt(e.test_micro_f1)}
+      · historial: ${CONFIG.store ? "servidor (Upstash)" : "este navegador"}`;
     info(); impacto();
   } catch (e) { $("#estado").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
 }
 
+// ---------- emociones
+function barrasEmociones(em) {
+  const total = Object.values(em.conteos).reduce((a, b) => a + b, 0);
+  if (!total) return `<p class="note">Ninguna palabra del léxico afectivo aparece en la reseña.</p>`;
+  return `<div class="bars">${Object.entries(em.proporciones).map(([k, v]) => `
+      <span>${EMO_ES[k] || k}</span><div class="bar"><i style="width:${(100 * v).toFixed(0)}%"></i></div><span>${em.conteos[k]}</span>`).join("")}</div>
+    <p class="note">Palabras: ${Object.entries(em.palabras).map(([k, ws]) => `<b>${EMO_ES[k]}</b>: ${esc(ws.join(", "))}`).join(" · ")}</p>`;
+}
+
+// ---------- análisis individual
 $("#analizar").onclick = async () => {
   const t = $("#texto").value.trim(); if (!t) return;
+  $("#analizar").disabled = true; $("#res1").innerHTML = `<p class="note">Analizando…</p>`;
   try {
-    const r = (await api("/api/analyze", {texts:[t], tau:tau()})).results[0];
+    const resp = await api("/api/analyze", {texts:[t], tau:tau()});
+    const r = resp.results[0]; ULTIMO = r;
+    if (!resp.stored) LS.push("ti_hist", {id:r.id, fecha:r.fecha, texto:r.texto, clase:r.clase, confianza:r.confianza,
+                                           decision:r.decision, aspectos:r.aspectos, emocion:r.emociones.dominante});
     $("#res1").innerHTML = `
       <div class="grid">
-        <div class="card"><div class="k">Clase</div><div class="v">${esc(r.clase)}</div></div>
+        <div class="card"><div class="k">Sentimiento</div><div class="v">${esc(r.clase)}</div></div>
         <div class="card"><div class="k">Confianza</div><div class="v">${(r.confianza*100).toFixed(0)} %</div></div>
+        <div class="card"><div class="k">Emoción dominante</div><div class="v">${esc(EMO_ES[r.emociones.dominante] || "—")}</div></div>
         <div class="card ${r.decision==="automatizar"?"":"warn"}"><div class="k">Decisión</div>
           <div class="v ${r.decision==="automatizar"?"auto":"human"}">${r.decision==="automatizar"?"Automatizar":"Revisión humana"}</div>
           <div class="note">${esc(r.motivos.join("; "))}</div></div>
       </div>
-      <p><b>Aspectos:</b> ${r.aspectos.length ? r.aspectos.map(a=>`<span class="tag">${esc(a)}</span>`).join("") : "ninguno"}</p>
-      <label>Respuesta sugerida (editable)</label><textarea>${esc(r.respuesta_sugerida)}</textarea>`;
+      <div class="two">
+        <div><h3>Emociones (léxico afectivo SEL + NRC)</h3>${barrasEmociones(r.emociones)}</div>
+        <div><h3>Aspectos</h3>${r.aspectos.length ? r.aspectos.map(a=>`<span class="tag">${esc(a)}</span>`).join("") : `<p class="note">ninguno</p>`}</div>
+      </div>
+      <div class="panel" id="panelFb">
+        <h3 style="margin-top:0">Retroalimentación humana</h3>
+        <label>¿Cuál es el sentimiento correcto?</label>
+        <div id="chips">${MODEL.classes.map(c => `<span class="chip ${c===r.clase?"sel":""}" data-c="${esc(c)}">${esc(c)}</span>`).join("")}</div>
+        <label style="display:block;margin-top:10px">Respuesta (edítela si no es adecuada; la versión final sirve de referencia para BLEU/ROUGE)</label>
+        <textarea id="respEdit">${esc(r.respuesta_sugerida)}</textarea>
+        <input type="text" id="coment" placeholder="Comentario opcional" style="margin-top:8px">
+        <button class="btn" id="enviarFb">Enviar retroalimentación</button> <span id="fbMsg"></span>
+      </div>
+      ${CONFIG.spacy_url ? `<div class="panel"><h3 style="margin-top:0">Análisis lingüístico (spaCy · displaCy)</h3>
+        <button class="btn sec" id="btnSpacy">Ver entidades y árbol de dependencias</button><div id="spacy"></div></div>` :
+        `<p class="note">El análisis de entidades y dependencias (spaCy) se activa al configurar SPACY_SERVICE_URL.</p>`}`;
+    document.querySelectorAll("#chips .chip").forEach(ch => ch.onclick = () => {
+      document.querySelectorAll("#chips .chip").forEach(x => x.classList.remove("sel")); ch.classList.add("sel"); });
+    $("#enviarFb").onclick = enviarFeedback;
+    if (CONFIG.spacy_url) $("#btnSpacy").onclick = verSpacy;
+    cargarHistorial(); cargarFeedback();         // refrescar paneles con el nuevo análisis
   } catch (e) { $("#res1").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+  finally { $("#analizar").disabled = false; }
 };
 
-// ---- CSV (lector con soporte de comillas)
+async function enviarFeedback() {
+  const r = ULTIMO, sel = document.querySelector("#chips .chip.sel");
+  const body = {id:r.id, texto:r.texto, clase_predicha:r.clase, clase_correcta:sel ? sel.dataset.c : r.clase,
+                confianza:r.confianza, respuesta_sugerida:r.respuesta_sugerida,
+                respuesta_editada:$("#respEdit").value.trim(), comentario:$("#coment").value.trim() || null};
+  try {
+    const out = await api("/api/feedback", body);
+    if (!out.stored) LS.push("ti_fb", out.registro, 5000);
+    const m = out.registro.metricas_respuesta;
+    $("#fbMsg").innerHTML = `<span class="okmsg">Gracias, quedó registrada${out.stored ? "" : " en este navegador"}.</span>` +
+      (m ? ` <span class="note">BLEU ${m.bleu} · ROUGE-1 ${m.rouge1} · ROUGE-2 ${m.rouge2} · ROUGE-L ${m.rougeL}</span>` : "");
+    $("#enviarFb").disabled = true;
+    cargarFeedback(); cargarHistorial();
+  } catch (e) { $("#fbMsg").innerHTML = `<span class="err">${esc(e.message)}</span>`; }
+}
+
+async function verSpacy() {
+  $("#spacy").innerHTML = `<p class="note">Analizando con spaCy… (el primer uso puede tardar mientras el servicio despierta)</p>`;
+  try {
+    const r = await fetch(CONFIG.spacy_url + "/analyze", {method:"POST", headers:{"Content-Type":"application/json"},
+                                                         body:JSON.stringify({text:ULTIMO.texto})});
+    if (!r.ok) throw new Error("Servicio spaCy: " + r.status);
+    const j = await r.json();
+    $("#spacy").innerHTML = `<h4>Entidades nombradas (NER)</h4><div class="displacy">${j.ents_html}</div>
+      <p class="note">${j.ents.length ? j.ents.map(e => `${esc(e.text)} → ${esc(e.label)}`).join(" · ") : "No se detectaron entidades."}</p>
+      <h4>Árbol de dependencias sintácticas</h4><div class="displacy">${j.dep_html}</div>
+      <p class="note">Modelo ${esc(j.model)}. Las etiquetas siguen el esquema Universal Dependencies.</p>`;
+  } catch (e) { $("#spacy").innerHTML = `<p class="err">${esc(e.message)}</p>`; }
+}
+
+// ---------- historial
+async function cargarHistorial() {
+  let items = [], origen;
+  if (CONFIG.store) { try { items = (await api("/api/history?limit=100")).items; origen = "servidor (compartido)"; } catch (e) { origen = "error: " + e.message; } }
+  else { items = LS.get("ti_hist"); origen = "este navegador (configure Upstash para compartirlo)"; }
+  $("#histNota").textContent = `${items.length} análisis · almacenamiento: ${origen}`;
+  const cnt = {}; items.forEach(i => cnt[i.clase] = (cnt[i.clase] || 0) + 1);
+  const hum = items.filter(i => i.decision !== "automatizar").length;
+  $("#histKpi").innerHTML = Object.entries(cnt).map(([k, v]) => `<div class="card"><div class="k">${esc(k)}</div><div class="v">${v}</div></div>`).join("") +
+    `<div class="card warn"><div class="k">A revisión humana</div><div class="v">${hum}</div></div>`;
+  $("#histTabla").innerHTML = `<tr><th>Fecha (UTC)</th><th>Reseña</th><th>Sentimiento</th><th>Conf.</th><th>Emoción</th><th>Decisión</th></tr>` +
+    items.map(i => `<tr><td>${esc((i.fecha || "").replace("T", " ").slice(0, 16))}</td><td>${esc(String(i.texto).slice(0, 140))}</td>
+      <td>${esc(i.clase)}</td><td>${fmt(i.confianza)}</td><td>${esc(EMO_ES[i.emocion] || "—")}</td>
+      <td class="${i.decision==="automatizar"?"auto":"human"}">${i.decision==="automatizar"?"auto":"humana"}</td></tr>`).join("");
+}
+$("#histRefrescar").onclick = cargarHistorial;
+
+// ---------- retroalimentación
+async function cargarFeedback() {
+  let st;
+  try {
+    st = CONFIG.store ? await api("/api/feedback/stats") : await api("/api/feedback/stats", {items: LS.get("ti_fb")});
+  } catch (e) { $("#fbStats").innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
+  $("#fbNota").textContent = `${st.n_feedback} retroalimentaciones · almacenamiento: ${CONFIG.store ? "servidor (las usa el reentrenamiento)" : "este navegador (exporte el CSV)"}`;
+  if (!st.n_etiquetados) { $("#fbStats").innerHTML = `<p class="note">Aún no hay retroalimentación. Analice una reseña y confirme o corrija su sentimiento.</p>`; return; }
+  const rs = st.respuestas || {};
+  $("#fbStats").innerHTML = `
+    <h3>Desempeño del modelo en producción (sobre casos revisados por personas)</h3>
+    <div class="grid">
+      <div class="card"><div class="k">Casos revisados</div><div class="v">${st.n_etiquetados}</div></div>
+      <div class="card"><div class="k">micro-F1 (= exactitud)</div><div class="v">${fmt(st.micro_f1)}</div></div>
+      <div class="card"><div class="k">macro-F1</div><div class="v">${fmt(st.macro_f1)}</div></div>
+    </div>
+    <p class="note">Ojo: con pocos casos y clases desbalanceadas, micro-F1 puede verse alto aunque el modelo falle en la clase minoritaria; por eso se muestran ambas.</p>
+    <table><tr><th>Clase</th><th>Precisión</th><th>Recall</th><th>F1</th><th>Soporte</th></tr>
+      ${Object.entries(st.por_clase).map(([c, v]) => `<tr><td>${esc(c)}</td><td>${fmt(v.precision)}</td><td>${fmt(v.recall)}</td><td>${fmt(v.f1)}</td><td>${v.soporte}</td></tr>`).join("")}</table>
+    <h3>Correcciones más frecuentes</h3>
+    ${Object.keys(st.correcciones || {}).length ? `<table><tr><th>Predicho → correcto</th><th>Veces</th></tr>${Object.entries(st.correcciones).map(([k, v]) => `<tr><td>${esc(k)}</td><td>${v}</td></tr>`).join("")}</table>` : `<p class="note">Sin correcciones: el modelo acertó en todos los casos revisados.</p>`}
+    <h3>Calidad de la respuesta sugerida frente a la respuesta final humana</h3>
+    ${rs.evaluadas ? `<div class="grid">
+      <div class="card"><div class="k">Respuestas evaluadas</div><div class="v">${rs.evaluadas}</div><div class="note">${rs.editadas} editadas</div></div>
+      <div class="card"><div class="k">BLEU</div><div class="v">${fmt(rs.bleu)}</div></div>
+      <div class="card"><div class="k">ROUGE-1</div><div class="v">${fmt(rs.rouge1)}</div></div>
+      <div class="card"><div class="k">ROUGE-2</div><div class="v">${fmt(rs.rouge2)}</div></div>
+      <div class="card"><div class="k">ROUGE-L</div><div class="v">${fmt(rs.rougeL)}</div></div></div>
+      <p class="note">1,0 = la persona no cambió la respuesta. BLEU y ROUGE miden coincidencia de palabras con la versión humana, no si la respuesta es adecuada ni empática.</p>`
+      : `<p class="note">Aún no hay respuestas revisadas.</p>`}`;
+}
+$("#fbRefrescar").onclick = cargarFeedback;
+$("#fbExportar").onclick = async () => {
+  const items = LS.get("ti_fb");
+  if (CONFIG.store && !items.length) { $("#fbNota").textContent = "Con Upstash, el workflow Train exporta la retroalimentación automáticamente (scripts/export_feedback.py)."; return; }
+  const cols = ["fecha","texto","clase_predicha","clase_correcta","confianza","respuesta_sugerida","respuesta_editada"];
+  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const csv = [cols.join(","), ...items.map(r => cols.map(c => q(r[c])).join(","))].join("\n");
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], {type:"text/csv"}));
+  a.download = "feedback.csv"; a.click();
+};
+
+// ---------- lote
 function parseCSV(txt) {
   const rows = []; let row = [], cur = "", q = false;
   for (let i = 0; i < txt.length; i++) {
@@ -156,37 +322,43 @@ $("#procesar").onclick = async () => {
   resultados = [];
   for (let i = 0; i < textos.length; i += 200) {
     $("#resLote").innerHTML = `<p class="note">Procesando ${i} / ${textos.length}…</p>`;
-    try { resultados.push(...(await api("/api/analyze", {texts: textos.slice(i, i + 200), tau: tau()})).results); }
+    try { resultados.push(...(await api("/api/analyze", {texts: textos.slice(i, i + 200), tau: tau(), save:false})).results); }
     catch (e) { $("#resLote").innerHTML = `<p class="err">${esc(e.message)}</p>`; return; }
   }
   const n = resultados.length, auto = resultados.filter(r => r.decision === "automatizar").length;
-  const porClase = {}; const asp = {};
-  resultados.forEach(r => { porClase[r.clase] = (porClase[r.clase] || 0) + 1; r.aspectos.forEach(a => { asp[a] = asp[a] || {}; asp[a][r.clase] = (asp[a][r.clase] || 0) + 1; }); });
-  const clases = Object.keys(porClase);
+  const porClase = {}, asp = {}, emo = {};
+  resultados.forEach(r => { porClase[r.clase] = (porClase[r.clase] || 0) + 1;
+    r.aspectos.forEach(a => { asp[a] = asp[a] || {}; asp[a][r.clase] = (asp[a][r.clase] || 0) + 1; });
+    if (r.emociones.dominante) emo[r.emociones.dominante] = (emo[r.emociones.dominante] || 0) + 1; });
+  const clases = Object.keys(porClase), maxE = Math.max(1, ...Object.values(emo));
   $("#resLote").innerHTML = `
     <div class="grid">
       <div class="card"><div class="k">Reseñas</div><div class="v">${n}</div></div>
       <div class="card"><div class="k">Automatizables</div><div class="v">${(100*auto/n).toFixed(0)} %</div></div>
       <div class="card warn"><div class="k">A revisión humana</div><div class="v">${n - auto}</div></div>
     </div>
-    <h3>Aspectos por clase</h3>
+    <div class="two"><div><h3>Emoción dominante</h3><div class="bars">${Object.entries(emo).sort((a,b)=>b[1]-a[1]).map(([k, v]) =>
+      `<span>${EMO_ES[k]}</span><div class="bar"><i style="width:${(100*v/maxE).toFixed(0)}%"></i></div><span>${v}</span>`).join("")}</div></div>
+    <div><h3>Aspectos por sentimiento</h3>
     <table><tr><th>Aspecto</th>${clases.map(c=>`<th>${esc(c)}</th>`).join("")}</tr>
-      ${Object.entries(asp).map(([a,v]) => `<tr><td>${esc(a)}</td>${clases.map(c=>`<td>${v[c]||0}</td>`).join("")}</tr>`).join("")}</table>
+      ${Object.entries(asp).map(([a,v]) => `<tr><td>${esc(a)}</td>${clases.map(c=>`<td>${v[c]||0}</td>`).join("")}</tr>`).join("")}</table></div></div>
     <h3>Resultados</h3>
-    <div class="scroll"><table><tr><th>Reseña</th><th>Clase</th><th>Conf.</th><th>Aspectos</th><th>Decisión</th></tr>
-      ${resultados.slice(0, 500).map(r => `<tr><td>${esc(r.texto.slice(0, 160))}</td><td>${esc(r.clase)}</td><td>${r.confianza.toFixed(2)}</td><td>${esc(r.aspectos.join(", "))}</td><td class="${r.decision==="automatizar"?"auto":"human"}">${r.decision==="automatizar"?"auto":"humana"}</td></tr>`).join("")}
+    <div class="scroll"><table><tr><th>Reseña</th><th>Sentimiento</th><th>Conf.</th><th>Emoción</th><th>Aspectos</th><th>Decisión</th></tr>
+      ${resultados.slice(0, 500).map(r => `<tr><td>${esc(r.texto.slice(0, 150))}</td><td>${esc(r.clase)}</td><td>${r.confianza.toFixed(2)}</td>
+        <td>${esc(EMO_ES[r.emociones.dominante] || "—")}</td><td>${esc(r.aspectos.join(", "))}</td>
+        <td class="${r.decision==="automatizar"?"auto":"human"}">${r.decision==="automatizar"?"auto":"humana"}</td></tr>`).join("")}
     </table></div><p class="note">Se muestran hasta 500 filas; la descarga incluye todas.</p>`;
   $("#descargar").disabled = false;
 };
 $("#descargar").onclick = () => {
-  const cols = ["texto","clase","confianza","polaridad","aspectos","respuesta_sugerida","decision","motivos"];
+  const cols = ["texto","clase","confianza","polaridad","emocion","aspectos","respuesta_sugerida","decision","motivos"];
   const q = v => `"${String(Array.isArray(v) ? v.join("; ") : v).replace(/"/g, '""')}"`;
-  const csv = [cols.join(","), ...resultados.map(r => cols.map(c => q(r[c])).join(","))].join("\n");
+  const csv = [cols.join(","), ...resultados.map(r => cols.map(c => q(c === "emocion" ? (r.emociones.dominante || "") : r[c])).join(","))].join("\n");
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + csv], {type:"text/csv"}));
   a.download = "resultados_traveler_insights.csv"; a.click();
 };
 
-// ---- Impacto
+// ---------- impacto
 ["vol","mman","msup","costo"].forEach(id => $("#" + id).oninput = impacto);
 function impacto() {
   if (!MODEL || !MODEL.evaluation) { $("#curva").innerHTML = `<p class="note">Sin métricas de evaluación.</p>`; return; }
@@ -204,32 +376,37 @@ function impacto() {
   const f = c.reduce((a, b) => Math.abs(b.tau - tau()) < Math.abs(a.tau - tau()) ? b : a);
   const vol = +$("#vol").value, mm = +$("#mman").value, ms = +$("#msup").value, costo = +$("#costo").value;
   const auto = vol * f.coverage, h0 = vol * mm / 60, h1 = ((vol - auto) * mm + auto * ms) / 60;
-  const err = auto * (1 - (f.accuracy_auto ?? 0));
-  const fmt = v => Math.round(v).toLocaleString("es-CO");
+  const err = auto * (1 - (f.accuracy_auto ?? 0)), n = v => Math.round(v).toLocaleString("es-CO");
   $("#kpis").innerHTML = `
     <div class="card"><div class="k">Automatizado</div><div class="v">${(100*f.coverage).toFixed(0)} %</div></div>
-    <div class="card"><div class="k">Horas/mes</div><div class="v">${fmt(h0)} → ${fmt(h1)}</div></div>
-    <div class="card"><div class="k">Ahorro/mes</div><div class="v">$${fmt((h0 - h1) * costo)}</div></div>
-    <div class="card warn"><div class="k">Errores automatizados/mes</div><div class="v">${fmt(err)}</div></div>`;
+    <div class="card"><div class="k">Horas/mes</div><div class="v">${n(h0)} → ${n(h1)}</div></div>
+    <div class="card"><div class="k">Ahorro/mes</div><div class="v">$${n((h0 - h1) * costo)}</div></div>
+    <div class="card warn"><div class="k">Errores automatizados/mes</div><div class="v">${n(err)}</div></div>`;
 }
 
+// ---------- modelo
 function info() {
   const e = MODEL.evaluation;
   if (!e) { $("#info").innerHTML = "<p>Sin métricas.</p>"; return; }
-  const g = e.quality_gate.checks;
+  const g = e.quality_gate.checks, pc = e.per_class || {};
   $("#info").innerHTML = `
     <div class="grid">
-      <div class="card"><div class="k">Macro-F1 (prueba)</div><div class="v">${e.test_macro_f1.toFixed(3)}</div><div class="note">IC 95 % [${e.bootstrap_ci.low}, ${e.bootstrap_ci.high}]</div></div>
-      <div class="card"><div class="k">Exactitud (prueba)</div><div class="v">${e.test_accuracy.toFixed(3)}</div></div>
+      <div class="card"><div class="k">macro-F1 (prueba)</div><div class="v">${fmt(e.test_macro_f1)}</div><div class="note">IC 95 % [${e.bootstrap_ci.low}, ${e.bootstrap_ci.high}]</div></div>
+      <div class="card"><div class="k">micro-F1 (prueba)</div><div class="v">${fmt(e.test_micro_f1)}</div><div class="note">= exactitud con una etiqueta por reseña</div></div>
       <div class="card"><div class="k">Calibración (ECE)</div><div class="v">${e.ece}</div></div>
     </div>
+    <p class="note"><b>¿Micro o macro?</b> micro-F1 suma aciertos de todas las reseñas, así que lo domina la clase mayoritaria (neutral).
+      macro-F1 promedia el F1 de cada clase por igual, así que refleja si el modelo detecta las quejas. La compuerta de calidad usa macro-F1.</p>
+    ${Object.keys(pc).length ? `<table><tr><th>Clase</th><th>Precisión</th><th>Recall</th><th>F1</th><th>Soporte</th></tr>
+      ${Object.entries(pc).map(([c, v]) => `<tr><td>${esc(c)}</td><td>${fmt(v.precision)}</td><td>${fmt(v.recall)}</td><td>${fmt(v["f1-score"])}</td><td>${v.support}</td></tr>`).join("")}</table>` : ""}
     <h3>Compuerta de calidad</h3>
     <table><tr><th>Control</th><th>Resultado</th><th>Detalle</th></tr>
       ${Object.entries(g).map(([k,v]) => `<tr><td>${esc(k)}</td><td class="${v.passed?"auto":"human"}">${v.passed?"aprobado":"rechazado"}</td><td>${esc(v.detail)}</td></tr>`).join("")}
     </table>
-    <p class="note">Modelo: TF-IDF de palabras y caracteres + regresión logística, entrenado con scikit-learn y servido como JSON. Las respuestas son sugerencias: una persona decide.</p>`;
+    <p class="note">Modelo: TF-IDF de palabras y caracteres + rasgos léxicos + regresión logística, servido como JSON.
+      Emociones: léxico afectivo SEL + NRC (conteo; no entiende negación ni ironía). Las respuestas son sugerencias: una persona decide.</p>`;
 }
-cargar();
+cargar().then(() => { cargarHistorial(); });
 </script>
 </body>
 </html>

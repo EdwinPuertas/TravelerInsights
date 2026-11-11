@@ -67,6 +67,26 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
     X_tr, X_te, y_tr, y_te = train_test_split(d["texto"], d["etiqueta"], test_size=cfg["data"]["test_size"],
                                               stratify=d["etiqueta"], random_state=seed)
 
+    # ---------------------------------------------------------------- 1b. retroalimentación humana
+    # Las correcciones de la app se suman SOLO al entrenamiento: la prueba queda intacta y comparable
+    fb_path = Path(cfg["data"].get("feedback_path", "data/feedback/feedback.csv"))
+    calidad["feedback"] = {"rows_added": 0}
+    if fb_path.exists():
+        from .core.text import normalizar as _norm
+        fbd = pd.read_csv(fb_path)[["texto", "clase_correcta"]].dropna().astype(str)
+        fbd = fbd[fbd["clase_correcta"].isin(set(d["etiqueta"]))]
+        fbd["_n"] = fbd["texto"].map(_norm)
+        fbd = fbd.drop_duplicates("_n", keep="first")                     # la más reciente primero
+        prueba = set(X_te.map(_norm))
+        fbd = fbd[~fbd["_n"].isin(prueba)]
+        fbd = fbd[~fbd["_n"].isin(set(X_tr.map(_norm)))]                  # no duplicar lo que ya está
+        X_tr = pd.concat([X_tr, fbd["texto"]], ignore_index=True)
+        y_tr = pd.concat([y_tr, fbd["clase_correcta"]], ignore_index=True)
+        d = pd.concat([d, fbd.rename(columns={"clase_correcta": "etiqueta"})[["texto", "etiqueta"]]], ignore_index=True)
+        calidad["feedback"] = {"rows_added": int(len(fbd)), "by_class": fbd["clase_correcta"].value_counts().to_dict()}
+        print(f"      + {len(fbd)} reseñas de retroalimentación humana añadidas al entrenamiento")
+        _dump(calidad, rep_dir / "data_quality.json")
+
     # ---------------------------------------------------------------- 2. entrenamiento
     print("[2/5] Entrenamiento con validación cruzada")
     p = cfg["model"]
@@ -151,7 +171,9 @@ def informe(res: dict, calidad: dict) -> str:
     sub = "\n".join(f"| {g} | {v['n']} | {v['macro_f1']} |" for g, v in c["by_length"].items())
     return f"""# Informe de evaluación
 
-Generado: {res['run']['timestamp_utc']} · datos `{calidad['data_sha256'][:12]}` · entrenamiento {res['run']['n_train']} · prueba {res['run']['n_test']}
+Generado: {res['run']['timestamp_utc']} · datos `{calidad['data_sha256'][:12]}` · entrenamiento {res['run']['n_train']} (incluye {calidad.get('feedback', {}).get('rows_added', 0)} de retroalimentación humana) · prueba {res['run']['n_test']}
+
+**Candidato en prueba:** macro-F1 {c['test']['macro_f1']} · micro-F1 {c['test'].get('micro_f1', c['test']['accuracy'])} (= exactitud)
 
 ## Compuerta de calidad: {'APROBADO ✅' if res['quality_gate']['passed'] else 'RECHAZADO ❌'}
 {gate}

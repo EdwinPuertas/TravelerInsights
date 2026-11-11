@@ -36,3 +36,20 @@ def test_compuerta_rechaza(tmp_path, df_multi):
     code = run(str(_cfg(tmp_path, csv, min_macro_f1=1.01)), str(tmp_path / "model"), str(tmp_path / "reports"))
     assert code == 1
     assert not (tmp_path / "model" / "model.json").exists()
+
+
+def test_feedback_se_suma_solo_al_entrenamiento(tmp_path, df_multi):
+    csv = tmp_path / "train.csv"
+    df_multi.to_csv(csv, index=False)
+    fbp = tmp_path / "feedback.csv"
+    import pandas as pd
+    pd.DataFrame({"texto": ["reseña nueva corregida por humano uno", "reseña nueva corregida por humano dos"],
+                  "clase_correcta": ["negativo", "positivo"]}).to_csv(fbp, index=False)
+    cfgp = _cfg(tmp_path, csv)
+    with open(cfgp, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+    cfg["data"]["feedback_path"] = str(fbp)
+    cfgp.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+    assert run(str(cfgp), str(tmp_path / "model"), str(tmp_path / "reports")) == 0
+    dq = json.loads((tmp_path / "reports" / "data_quality.json").read_text(encoding="utf-8"))
+    assert dq["feedback"]["rows_added"] == 2

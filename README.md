@@ -44,6 +44,12 @@ Esta tabla es el registro vivo del proyecto. Cada nueva funcionalidad se agrega 
 | 1.0 | CI, entrenamiento continuo con PR, despliegue y monitoreo de salud | 6 · Operación | `.github/workflows/` |
 | 1.1 | Notebook del pipeline paso a paso: evaluación, pruebas de comportamiento sobre reseñas reales, exportación, integración con la API y deriva (PSI) con `test.csv` | 2–6 | `notebooks/TravelerInsights_Pipeline_CRISP-MLQ.ipynb` |
 | 1.2 | Rasgos léxicos de los modelos anteriores del curso (léxico de `lexical_features.py` de courseNLP: pronombres, adverbios de negación/tiempo/lugar/modo/cantidad, adjetivos, personas, odio y estadísticas de palabras), con 4 correcciones documentadas, unidos al TF-IDF y evaluados por ablación (con vs. sin léxico) | 3–5 | `core/lexical.py`, `ml/lexical.py`, `params.yaml › model.lexical_features` |
+| 1.4 | **micro-F1 y macro-F1** en la ficha del modelo (la compuerta sigue usando macro-F1 por el desbalance de clases) | 4 · Evaluación | `ml/evaluate.py`, `app.py › /api/model` |
+| 1.4 | **Historial de reseñas** que se refresca al analizar (Upstash Redis; respaldo en el navegador si no está configurado) | 5 · Despliegue | `core/store.py`, `/api/history` |
+| 1.4 | **Retroalimentación humana** (*human feedback loop*): corrección de clase y edición de la respuesta; las correcciones se agregan **solo al entrenamiento** del siguiente `train.yml` y el modelo debe volver a pasar la compuerta | 5–6 | `core/feedback.py`, `/api/feedback`, `scripts/export_feedback.py`, `pipeline.py` |
+| 1.4 | Métricas de producción: micro/macro-F1 contra las correcciones humanas y **BLEU / ROUGE-1/2/L** entre la respuesta sugerida y la editada | 4–6 | `core/textmetrics.py`, `/api/feedback/stats` |
+| 1.4 | **Análisis de emociones** con el léxico afectivo de los modelos previos (SEL + NRC, 8 emociones) | 5 · Despliegue | `core/emotions.py`, `core/data/emociones.json` |
+| 1.4 | **NER visual y árbol de dependencias** con spaCy/displaCy en un servicio aparte (Hugging Face Spaces) | 5 · Despliegue | `services/spacy-displacy/`, `spacy-space.yml` |
 | 1.3 | Notebook **independiente** (sin API de Kaggle ni módulos del repo): modelo base TF-IDF + léxico → word embeddings FastText → Transformer BETO, con las 6 fases de CRISP-ML(Q), comparación justa (bootstrap, McNemar, calibración, costo), compuerta y despliegue (FastAPI, Docker/Hugging Face Spaces) | 1–6 | `notebooks/TravelerInsights_TFIDF_Embeddings_Transformer_CRISP-MLQ.ipynb` |
 
 **Siguientes funcionalidades sugeridas:** reemplazar el modelo por el Transformer afinado del proyecto integrador (sección 10), registro anónimo de predicciones para medir deriva y análisis de sentimiento por aspectos con un modelo.
@@ -200,6 +206,7 @@ Abra un Pull Request. CI verifica que el modelo cargue y que haya pasado la comp
 | `train.yml` | Manual (*Actions → Train → Run workflow*); opcional mensual | Descarga datos de Kaggle → pipeline con compuerta → guarda evidencias → **abre un PR** con el modelo aprobado |
 | `deploy.yml` | Push a `main` (opcional) | Despliega en Vercel con su CLI. Úselo solo si no usa la integración de Git de Vercel |
 | `monitor.yml` | Diario | Prueba de humo contra la app desplegada (`/api/health` y una predicción) |
+| `spacy-space.yml` | Manual o push a `services/spacy-displacy/` | Publica el servicio spaCy/displaCy en Hugging Face Spaces |
 
 ### 6.1 Configuración (una sola vez)
 En GitHub: *Settings → Secrets and variables → Actions*.
@@ -211,6 +218,9 @@ En GitHub: *Settings → Secrets and variables → Actions*.
 | Variable | `APP_URL` | URL de producción de Vercel, sin `/` final | `monitor.yml` |
 | Variable *(opcional)* | `DEPLOY_WITH_ACTIONS` | `true` | `deploy.yml` |
 | Secret *(opcional)* | `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` | ver sección 7.3 | `deploy.yml` |
+| Secret *(opcional)* | `KV_REST_API_URL`, `KV_REST_API_TOKEN` | los mismos de Upstash en Vercel (sección 7.4) | `train.yml` (exporta la retroalimentación) |
+| Secret *(opcional)* | `HF_TOKEN` | token de Hugging Face con permiso *write* | `spacy-space.yml` |
+| Variable *(opcional)* | `HF_SPACE` | `usuario/traveler-insights-spacy` | `spacy-space.yml` |
 
 Además, en *Settings → Actions → General → Workflow permissions*, active **Allow GitHub Actions to create and approve pull requests** para que `train.yml` pueda abrir el PR.
 
@@ -267,6 +277,21 @@ curl -X POST https://<su-app>.vercel.app/api/analyze \
 3. Guarde `VERCEL_TOKEN`, `VERCEL_ORG_ID` y `VERCEL_PROJECT_ID` como secretos, y la variable `DEPLOY_WITH_ACTIONS = true`.
 4. Desactive la integración de Git en Vercel para no desplegar dos veces.
 
+### 7.4 Historial y retroalimentación (Upstash Redis)
+1. En Vercel: *Project → Storage → Create Database → Upstash for Redis* (plan gratuito) y conéctela al proyecto. Vercel crea `KV_REST_API_URL` y `KV_REST_API_TOKEN`.
+2. *Deployments → Redeploy*. `/api/health` debe mostrar `"store": true`.
+3. Copie esas dos variables como **secretos** en GitHub para que `train.yml` incorpore la retroalimentación.
+
+Sin Upstash la app funciona igual: guarda historial y retroalimentación **solo en el navegador** (localStorage), y ese feedback no llega al reentrenamiento salvo que exporte el CSV y lo copie a `data/feedback/feedback.csv`.
+
+### 7.5 NER y dependencias con spaCy (Hugging Face Spaces)
+spaCy con `es_core_news_sm` no cabe en el límite de tamaño de una función de Vercel, así que corre aparte:
+1. Cree un token *write* en https://huggingface.co/settings/tokens y guárdelo como secreto `HF_TOKEN`; cree la variable `HF_SPACE` (por ejemplo `EdwinPuertas/traveler-insights-spacy`).
+2. *Actions → spaCy Space → Run workflow*. El primer build tarda unos minutos.
+3. En Vercel agregue la variable `SPACY_SERVICE_URL = https://<usuario>-traveler-insights-spacy.hf.space` y redepliegue.
+
+Prueba local: `cd services/spacy-displacy && pip install -r requirements.txt && uvicorn app:app --port 7860`.
+
 ---
 
 ## 8. API
@@ -276,7 +301,11 @@ curl -X POST https://<su-app>.vercel.app/api/analyze \
 | GET | `/` | App web |
 | GET | `/api/health` | Estado y si hay modelo cargado |
 | GET | `/api/model` | Clases, metadatos, métricas de prueba, curva τ y compuerta |
-| POST | `/api/analyze` | Analiza hasta 200 reseñas |
+| POST | `/api/analyze` | Analiza hasta 200 reseñas; incluye perfil de emociones. Guarda en el historial si es una sola reseña o `save: true` |
+| GET | `/api/history` | Últimas reseñas analizadas (hasta 500) |
+| POST | `/api/feedback` | Clase correcta, respuesta editada y comentario; devuelve BLEU/ROUGE de esa respuesta |
+| GET | `/api/feedback/stats` | micro/macro-F1 contra correcciones humanas, matriz de errores, BLEU y ROUGE promedio |
+| GET | `/api/config` | Si hay almacenamiento y la URL del servicio spaCy |
 | GET | `/docs` | Documentación interactiva (OpenAPI) |
 
 Ejemplo de respuesta de `/api/analyze` (valores ilustrativos):
@@ -295,7 +324,7 @@ Ejemplo de respuesta de `/api/analyze` (valores ilustrativos):
   }]
 }
 ```
-La API no guarda las reseñas que recibe.
+Con Upstash configurado, la API **sí guarda** las reseñas individuales en el historial, visible para cualquiera que abra la app. No pegue datos personales; en un uso real, proteja la app con autenticación o desactive el historial.
 
 ---
 
@@ -336,6 +365,10 @@ En ambos casos el Transformer debe pasar la misma compuerta de calidad.
 - Las respuestas son **sugerencias**. La plantilla nunca promete reembolsos, descuentos ni plazos, y el guardarraíl envía a revisión humana cualquier respuesta con compromisos.
 - Limitaciones conocidas: ironía, negación, reseñas mixtas y variedades del español. El léxico de aspectos no cubre todas las reseñas.
 - Revise `model/MODEL_CARD.md` antes de usar el modelo en otro contexto.
+- **Retroalimentación humana ≠ RLHF.** No hay modelo de recompensa ni aprendizaje por refuerzo: las correcciones se convierten en ejemplos supervisados. Entran solo al entrenamiento (nunca a la prueba) y el modelo nuevo debe superar la compuerta y la revisión del PR. Vigile correcciones sesgadas o maliciosas antes de fusionar.
+- **micro-F1** en clasificación multiclase de una sola etiqueta es igual a la exactitud; con 630 neutras, 157 positivas y 22 negativas puede verse alta aunque el modelo falle en negativas. Por eso la compuerta usa macro-F1.
+- **BLEU y ROUGE** miden coincidencia de n-gramas con la respuesta editada por una persona, no si la respuesta es correcta, empática o segura.
+- **Emociones por léxico:** cuentan palabras, no manejan negación ni ironía y heredan sesgos del léxico. Léxicos: SEL (Sidorov et al.) y NRC Emotion Lexicon (Mohammad & Turney), este último con licencia de uso en investigación/educación; revise la licencia antes de un uso comercial.
 
 ---
 
@@ -358,4 +391,8 @@ En ambos casos el Transformer debe pasar la misma compuerta de calidad.
 - Dietterich, T. G. (1998). Approximate Statistical Tests for Comparing Supervised Classification Learning Algorithms. *Neural Computation*, 10(7), 1895–1923.
 - Guo, C., Pleiss, G., Sun, Y. & Weinberger, K. Q. (2017). On Calibration of Modern Neural Networks. *ICML 2017*.
 - Ribeiro, M. T., Wu, T., Guestrin, C. & Singh, S. (2020). Beyond Accuracy: Behavioral Testing of NLP Models with CheckList. *ACL 2020*.
+- Papineni, K., Roukos, S., Ward, T. & Zhu, W.-J. (2002). BLEU: a Method for Automatic Evaluation of Machine Translation. *ACL 2002*.
+- Lin, C.-Y. (2004). ROUGE: A Package for Automatic Evaluation of Summaries. *Text Summarization Branches Out (ACL Workshop)*.
+- Mohammad, S. M. & Turney, P. D. (2013). Crowdsourcing a Word–Emotion Association Lexicon. *Computational Intelligence*, 29(3), 436–465.
+- Honnibal, M. et al. spaCy: Industrial-strength NLP (https://spacy.io) y displaCy.
 - Documentación de Vercel: FastAPI on Vercel (https://vercel.com/docs/frameworks/backend/fastapi).

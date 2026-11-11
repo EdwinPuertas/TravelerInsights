@@ -8,3 +8,5 @@ configs/
 .github/
 src/traveler_insights/ml/
 src/traveler_insights/pipeline.py
+services/
+scripts/

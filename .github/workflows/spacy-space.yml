@@ -1,0 +1,38 @@
+# Despliega el servicio spaCy (NER y dependencias con displaCy) en Hugging Face Spaces.
+# Requiere el secreto HF_TOKEN (token con permiso de escritura) y la variable HF_SPACE,
+# por ejemplo: EdwinPuertas/traveler-insights-spacy
+name: spaCy Space
+
+on:
+  push:
+    branches: [main]
+    paths: ["services/spacy-displacy/**"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: vars.HF_SPACE != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Subir a Hugging Face Spaces
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          pip install -q huggingface_hub
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          repo = os.environ["HF_SPACE"]
+          api.create_repo(repo, repo_type="space", space_sdk="docker", exist_ok=True)
+          api.upload_folder(folder_path="services/spacy-displacy", repo_id=repo, repo_type="space",
+                            commit_message="Despliegue desde GitHub Actions")
+          owner, name = repo.split("/")
+          print(f"Space: https://huggingface.co/spaces/{repo}")
+          print(f"URL del servicio: https://{owner.lower()}-{name.lower().replace('_', '-')}.hf.space")
+          PY

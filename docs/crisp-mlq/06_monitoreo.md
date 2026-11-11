@@ -14,3 +14,9 @@ Medir **deriva** sin guardar textos personales. Por ejemplo, registrar de forma 
 - Caída de la exactitud en auditorías por muestreo.
 - Cambio sostenido en la distribución de clases o de confianza.
 - Nuevos datos etiquetados disponibles.
+
+## v1.4 · Retroalimentación humana
+- Cada corrección (clase correcta, respuesta editada) se guarda en `ti:feedback`.
+- Métricas de producción: micro-F1 (= exactitud) y macro-F1 frente a las correcciones; BLEU y ROUGE-1/2/L entre respuesta sugerida y editada.
+- `train.yml` exporta el feedback a `data/feedback/feedback.csv`; el pipeline lo agrega **solo al entrenamiento**, excluye textos que estén en la prueba y el modelo vuelve a pasar la compuerta y la revisión del PR.
+- Riesgos: pocas correcciones, correcciones de una sola clase o malintencionadas. Revise `reports/` antes de fusionar.

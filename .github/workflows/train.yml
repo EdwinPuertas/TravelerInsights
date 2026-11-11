@@ -42,6 +42,11 @@ jobs:
           mkdir -p data/raw
           kaggle competitions download -c traveler-insights-uptc-2026 -p data/raw
           cd data/raw && unzip -o '*.zip' && ls -la
+      - name: Exportar retroalimentación humana (Upstash)
+        env:
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+        run: python scripts/export_feedback.py
       - name: Pipeline CRISP-ML(Q)
         id: pipeline
         run: python -m traveler_insights.pipeline --config configs/params.yaml
