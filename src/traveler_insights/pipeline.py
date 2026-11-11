@@ -174,6 +174,14 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
     res["candidate"]["calibration"] = ev.calibracion(y_te, proba, cand.classes_, e["calibration_bins"])
     res["candidate"]["tau_curve"] = ev.curva_tau(y_te, proba, cand.classes_)
     res["candidate"]["by_length"] = ev.por_subgrupo(X_te, y_te, preds["candidate"])
+    srv = cfg["serving"]
+    res["candidate"]["safety_rule"] = ev.evaluar_regla_seguridad(
+        list(X_te), y_te, proba, cand.classes_, mapa_polaridad([str(c) for c in cand.classes_]), srv["tau"],
+        srv.get("neg_risk_threshold", 0.15), tuple(srv.get("alert_emotions", ["enojo", "disgusto"])))
+    sr = res["candidate"]["safety_rule"]
+    print(f"      regla de seguridad: negativas automatizadas {sr['sin_regla']['negativas_automatizadas']} → "
+          f"{sr['con_regla']['negativas_automatizadas']} de {sr['con_regla']['negativas_total']} · revisión humana "
+          f"{sr['sin_regla']['tasa_revision']:.1%} → {sr['con_regla']['tasa_revision']:.1%}")
     reps = int(e.get("balanced_repeats", 0))
     if esquema["test_split"] == "balanced" and reps > 0:
         print(f"      evaluación repetida: {reps} particiones balanceadas")
@@ -207,7 +215,9 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
     final = final_w.estimator_ if externos else final_w
     meta = {"created_utc": res["run"]["timestamp_utc"], "data_sha256": calidad["data_sha256"],
             "columns": calidad["columns"], "test_macro_f1": res["candidate"]["test"]["macro_f1"],
-            "polarity": mapa_polaridad([str(c) for c in final.classes_]), "tau": cfg["serving"]["tau"]}
+            "polarity": mapa_polaridad([str(c) for c in final.classes_]), "tau": cfg["serving"]["tau"],
+            "safety": {"neg_risk_threshold": cfg["serving"].get("neg_risk_threshold", 0.15),
+                       "alert_emotions": cfg["serving"].get("alert_emotions", ["enojo", "disgusto"])}}
     spec = a_json(final, meta)
     err = paridad(final, spec, X_te.head(300))
     ok_par = err <= cfg["quality_gate"]["max_parity_error"]
@@ -252,6 +262,16 @@ def informe(res: dict, calidad: dict) -> str:
     if c.get("oof_repeated"):
         o = c["oof_repeated"]
         esq_txt += f" · macro-F1 {o['macro_f1_mean']} ± {o['macro_f1_std']} · micro-F1 {o['micro_f1_mean']}"
+    regla_txt = "No evaluada."
+    if c.get("safety_rule"):
+        sr = c["safety_rule"]
+        filas_r = "\n".join(f"| {r['umbral']} | {r['negativas_automatizadas']} / {r['negativas_total']} | {r['tasa_revision']:.1%} |"
+                             for r in sr["curva"])
+        regla_txt = (f"Con τ = {sr['tau']}, sin regla {sr['sin_regla']['negativas_automatizadas']} de "
+                     f"{sr['sin_regla']['negativas_total']} negativas reales se clasificarían como otra clase y se responderían automáticamente (revisión humana {sr['sin_regla']['tasa_revision']:.1%}). "
+                     f"Con la regla (p(negativo) > {sr['umbral']} o emoción {', '.join(sr['emociones_alerta'])}): "
+                     f"{sr['con_regla']['negativas_automatizadas']} automatizadas, revisión humana {sr['con_regla']['tasa_revision']:.1%}.\n\n"
+                     "| Umbral p(negativo) | Negativas mal clasificadas y automatizadas | Revisión humana |\n|---|---|---|\n" + filas_r)
     rep_txt = ""
     if c.get("repeated_balanced"):
         rb = c["repeated_balanced"]
@@ -280,6 +300,9 @@ Generado: {res['run']['timestamp_utc']} · datos `{calidad['data_sha256'][:12]}`
 - McNemar frente a Naive Bayes: solo el candidato acierta {mc['only_candidate_correct']}, solo NB acierta {mc['only_baseline_correct']}, p = {mc['p_value']}
 - Calibración: ECE = {c['calibration']['ece']}
 {abl}
+## Regla de seguridad (revisión humana de posibles negativas)
+{regla_txt}
+
 ## Desempeño por clase (prueba)
 | Clase | Precisión | Recall | F1 | Soporte |
 |---|---|---|---|---|

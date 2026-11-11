@@ -66,3 +66,7 @@ quality_gate:
 
 serving:
   tau: 0.70                         # umbral de confianza para automatizar
+  # Regla de seguridad: a revisión humana si p(negativo) > neg_risk_threshold aunque gane otra clase,
+  # o si la emoción dominante del léxico es de alerta. Su efecto se mide en reports/evaluation.md.
+  neg_risk_threshold: 0.15
+  alert_emotions: [enojo, disgusto]

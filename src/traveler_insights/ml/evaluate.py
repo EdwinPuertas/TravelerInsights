@@ -209,3 +209,42 @@ def compuerta(resultado: dict, gate: dict, produccion: dict | None, esquema: dic
                                              "revise el PR")
     out = {k: {"passed": bool(ok), "detail": d} for k, (ok, d) in checks.items()}
     return {"checks": out, "passed": all(c["passed"] for c in out.values())}
+
+
+def evaluar_regla_seguridad(textos, y_true, proba, clases, polaridad: dict, tau: float,
+                            umbral: float, alerta, umbrales=(0.05, 0.10, 0.15, 0.20, 0.30, 0.50)) -> dict:
+    """Efecto de la regla de seguridad con predicciones fuera de pliegue.
+
+    - negativas_automatizadas: reseñas realmente negativas que el modelo clasifica como otra
+      clase y que se responderían sin revisión (el error costoso).
+    - tasa_revision: fracción del total que va a revisión humana (carga de trabajo).
+    """
+    from ..core.business import regla_seguridad
+    from ..core.emotions import perfil
+    y = np.asarray(y_true)
+    clases = list(clases)
+    emos = [perfil(t) for t in textos]
+    neg = [c for c in clases if polaridad.get(c) == "negativa"]
+    es_neg = np.isin(y, neg)
+
+    pred_neg = np.array([clases[int(np.argmax(p))] in neg for p in proba])
+
+    def simular(u, usar_emocion=True, usar_regla=True):
+        rev = []
+        for p, e in zip(proba, emos):
+            k = int(np.argmax(p))
+            mot = p[k] < tau
+            if usar_regla:
+                mot = mot or bool(regla_seguridad(dict(zip(clases, p)), clases[k], polaridad,
+                                                  e if usar_emocion else None, u, alerta))
+            rev.append(mot)
+        rev = np.array(rev)
+        return {"tasa_revision": round(float(rev.mean()), 4),
+                # negativas reales que el modelo NO reconoce y que saldrían con respuesta automática
+                "negativas_automatizadas": int((es_neg & ~pred_neg & ~rev).sum()),
+                "negativas_a_revision": int((es_neg & rev).sum()), "negativas_total": int(es_neg.sum())}
+
+    return {"umbral": umbral, "emociones_alerta": list(alerta), "tau": tau,
+            "sin_regla": simular(umbral, usar_regla=False),
+            "con_regla": simular(umbral),
+            "curva": [{"umbral": u, **simular(u)} for u in umbrales]}

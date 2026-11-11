@@ -74,23 +74,52 @@ def requiere_revision(respuesta: str) -> bool:
     return bool(COMPROMISOS.search(normalizar(respuesta)))
 
 
-def analizar(modelo, textos: list[str], tau: float = 0.7, polaridad: dict | None = None) -> list[dict]:
-    """Clasifica, detecta aspectos, sugiere respuesta y decide el enrutamiento."""
+UMBRAL_RIESGO_NEGATIVO = 0.15
+EMOCIONES_ALERTA = ("enojo", "disgusto")
+
+
+def regla_seguridad(proba: dict, clase: str, polaridad: dict, emociones: dict | None,
+                    umbral: float = UMBRAL_RIESGO_NEGATIVO, alerta=EMOCIONES_ALERTA) -> list[str]:
+    """Motivos para enviar a revisión humana una posible reseña negativa mal clasificada.
+
+    El modelo detecta menos de la mitad de las negativas (pocas en el entrenamiento),
+    así que no se automatiza si (a) la probabilidad de la clase negativa supera `umbral`
+    aunque gane otra clase, o (b) la emoción dominante del léxico es de alerta.
+    """
+    motivos = []
+    for c, pc in proba.items():
+        if polaridad.get(c) == "negativa" and c != clase and pc > umbral:
+            motivos.append(f"posible reseña negativa (p={pc:.2f})")
+    if emociones and emociones.get("dominante") in alerta and polaridad.get(clase) != "negativa":
+        motivos.append(f"emoción de alerta: {emociones['dominante']}")
+    return motivos
+
+
+def analizar(modelo, textos: list[str], tau: float = 0.7, polaridad: dict | None = None,
+             umbral_negativo: float | None = None, emociones_alerta=None) -> list[dict]:
+    """Clasifica, detecta aspectos y emociones, sugiere respuesta y decide el enrutamiento."""
+    from .emotions import perfil
     polaridad = polaridad or modelo.metadata.get("polarity") or mapa_polaridad(modelo.classes)
+    seg = modelo.metadata.get("safety", {})
+    umbral = umbral_negativo if umbral_negativo is not None else seg.get("neg_risk_threshold", UMBRAL_RIESGO_NEGATIVO)
+    alerta = tuple(emociones_alerta or seg.get("alert_emotions", EMOCIONES_ALERTA))
     resultados = []
     for texto, p in zip(textos, modelo.predict_proba(textos)):
         k = max(range(len(p)), key=p.__getitem__)
         clase, conf = modelo.classes[k], float(p[k])
         pol = polaridad.get(clase, "neutra")
         resp = respuesta_plantilla(texto, pol)
+        emo = perfil(texto)
         motivos = []
         if conf < tau:
             motivos.append("confianza baja")
         if requiere_revision(resp):
             motivos.append("respuesta con compromisos")
+        motivos += regla_seguridad(dict(zip(modelo.classes, map(float, p))), clase, polaridad, emo, umbral, alerta)
         resultados.append({
             "texto": texto, "clase": clase, "confianza": round(conf, 4), "polaridad": pol,
-            "aspectos": detectar_aspectos(texto), "respuesta_sugerida": resp,
+            "probabilidades": {c: round(float(v), 4) for c, v in zip(modelo.classes, p)},
+            "aspectos": detectar_aspectos(texto), "emociones": emo, "respuesta_sugerida": resp,
             "decision": "revision_humana" if motivos else "automatizar", "motivos": motivos,
         })
     return resultados

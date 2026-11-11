@@ -109,7 +109,7 @@ def analizar_resenas(p: Peticion):
     for r in resultados:
         r["id"] = uuid.uuid4().hex[:12]
         r["fecha"] = _ahora()
-        r["emociones"] = perfil(r["texto"])
+        r.setdefault("emociones", perfil(r["texto"]))
     guardar = p.save if p.save is not None else len(textos) == 1
     guardado = False
     if guardar and store.configurado():
