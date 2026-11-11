@@ -515,6 +515,70 @@
         "n": 269,
         "macro_f1": 0.7175
       }
+    },
+    "safety_rule": {
+      "umbral": 0.15,
+      "emociones_alerta": [
+        "enojo",
+        "disgusto"
+      ],
+      "tau": 0.7,
+      "sin_regla": {
+        "tasa_revision": 0.1434,
+        "negativas_automatizadas": 5,
+        "negativas_a_revision": 12,
+        "negativas_total": 22
+      },
+      "con_regla": {
+        "tasa_revision": 0.157,
+        "negativas_automatizadas": 4,
+        "negativas_a_revision": 13,
+        "negativas_total": 22
+      },
+      "curva": [
+        {
+          "umbral": 0.05,
+          "tasa_revision": 0.2225,
+          "negativas_automatizadas": 3,
+          "negativas_a_revision": 14,
+          "negativas_total": 22
+        },
+        {
+          "umbral": 0.1,
+          "tasa_revision": 0.1743,
+          "negativas_automatizadas": 4,
+          "negativas_a_revision": 13,
+          "negativas_total": 22
+        },
+        {
+          "umbral": 0.15,
+          "tasa_revision": 0.157,
+          "negativas_automatizadas": 4,
+          "negativas_a_revision": 13,
+          "negativas_total": 22
+        },
+        {
+          "umbral": 0.2,
+          "tasa_revision": 0.1471,
+          "negativas_automatizadas": 5,
+          "negativas_a_revision": 12,
+          "negativas_total": 22
+        },
+        {
+          "umbral": 0.3,
+          "tasa_revision": 0.1471,
+          "negativas_automatizadas": 5,
+          "negativas_a_revision": 12,
+          "negativas_total": 22
+        },
+        {
+          "umbral": 0.5,
+          "tasa_revision": 0.1471,
+          "negativas_automatizadas": 5,
+          "negativas_a_revision": 12,
+          "negativas_total": 22
+        }
+      ]
     }
   },
   "quality_gate": {
@@ -533,7 +597,7 @@
       },
       "no_regression": {
         "passed": true,
-        "detail": "no comparable: cambió la partición de prueba ({'test_split': 'balanced', 'test_per_class': 7, 'seed': 42} → {'test_split': 'cv', 'folds': 5, 'repeats': 5, 'seed': 42}); revise el PR"
+        "detail": "0.7473 ≥ producción 0.7473 − 0.01"
       },
       "json_parity": {
         "passed": true,
@@ -543,7 +607,7 @@
     "passed": true
   },
   "run": {
-    "timestamp_utc": "2026-11-11T02:44:52+00:00",
+    "timestamp_utc": "2026-11-11T03:05:36+00:00",
     "python": "3.12.16",
     "sklearn": "1.9.1",
     "config": {
@@ -556,6 +620,7 @@
         "test_per_class": 7,
         "test_size": 0.2,
         "feedback_path": "data/feedback/feedback.csv",
+        "external": [],
         "quality": {
           "min_rows": 200,
           "min_per_class": 20,
@@ -578,6 +643,7 @@
         "sublinear_tf": true,
         "C": 4.0,
         "class_weight": "balanced",
+        "resampling": "none",
         "max_iter": 2000
       },
       "evaluation": {
@@ -594,7 +660,12 @@
         "max_parity_error": 0.0001
       },
       "serving": {
-        "tau": 0.7
+        "tau": 0.7,
+        "neg_risk_threshold": 0.15,
+        "alert_emotions": [
+          "enojo",
+          "disgusto"
+        ]
       }
     },
     "data_sha256": "ab6775f3763794c66017af034831e5b4a38c73feb7afb8671db5b325553bdd0e",

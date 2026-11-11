@@ -1,6 +1,8 @@
 # Informe de evaluación
 
-Generado: 2026-11-11T02:44:52+00:00 · datos `ab6775f37637` · entrenamiento 809 (incluye 0 de retroalimentación humana) · prueba 809
+Generado: 2026-11-11T03:05:36+00:00 · datos `ab6775f37637` · entrenamiento 809 (incluye 0 de retroalimentación humana) · prueba 809
+
+**Balanceo:** none · **datos externos (solo entrenamiento):** 0 
 
 **Evaluación:** fuera de pliegue (validación cruzada estratificada, 5 pliegues × 5 repeticiones; cada reseña se predice con un modelo que no la vio) · macro-F1 0.7422 ± 0.0129 · micro-F1 0.89 · soporte por clase {'negativo': 22, 'neutral': 630, 'positivo': 157}
 
@@ -10,7 +12,7 @@ Generado: 2026-11-11T02:44:52+00:00 · datos `ab6775f37637` · entrenamiento 809
 - ✅ **min_macro_f1**: macro-F1 0.7473 ≥ 0.5
 - ✅ **beats_dummy**: 0.7473 − dummy 0.2919 ≥ 0.1
 - ✅ **min_macro_f1_repetido**: media 0.7422 ± 0.0129 en 5 repeticiones de 5 pliegues ≥ 0.5
-- ✅ **no_regression**: no comparable: cambió la partición de prueba ({'test_split': 'balanced', 'test_per_class': 7, 'seed': 42} → {'test_split': 'cv', 'folds': 5, 'repeats': 5, 'seed': 42}); revise el PR
+- ✅ **no_regression**: 0.7473 ≥ producción 0.7473 − 0.01
 - ✅ **json_parity**: error máx. 3.98e-07 ≤ 0.0001
 
 ## Comparación con baselines (macro-F1)
@@ -25,6 +27,18 @@ Generado: 2026-11-11T02:44:52+00:00 · datos `ab6775f37637` · entrenamiento 809
 - McNemar frente a Naive Bayes: solo el candidato acierta 130, solo NB acierta 49, p = 0.0
 - Calibración: ECE = 0.0223
 - **Ablación de rasgos léxicos:** macro-F1 con léxico 0.7473 vs. sin léxico 0.7037; McNemar: solo con léxico acierta 28, solo sin léxico acierta 32, p = 0.698883
+
+## Regla de seguridad (revisión humana de posibles negativas)
+Con τ = 0.7, sin regla 5 de 22 negativas reales se clasificarían como otra clase y se responderían automáticamente (revisión humana 14.3%). Con la regla (p(negativo) > 0.15 o emoción enojo, disgusto): 4 automatizadas, revisión humana 15.7%.
+
+| Umbral p(negativo) | Negativas mal clasificadas y automatizadas | Revisión humana |
+|---|---|---|
+| 0.05 | 3 / 22 | 22.2% |
+| 0.1 | 4 / 22 | 17.4% |
+| 0.15 | 4 / 22 | 15.7% |
+| 0.2 | 5 / 22 | 14.7% |
+| 0.3 | 5 / 22 | 14.7% |
+| 0.5 | 5 / 22 | 14.7% |
 
 ## Desempeño por clase (prueba)
 | Clase | Precisión | Recall | F1 | Soporte |

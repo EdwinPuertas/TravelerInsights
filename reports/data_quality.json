@@ -37,5 +37,11 @@
     }
   },
   "passed": true,
-  "data_sha256": "ab6775f3763794c66017af034831e5b4a38c73feb7afb8671db5b325553bdd0e"
+  "data_sha256": "ab6775f3763794c66017af034831e5b4a38c73feb7afb8671db5b325553bdd0e",
+  "feedback": {
+    "rows_added": 0
+  },
+  "external": {
+    "rows_added": 0
+  }
 }
