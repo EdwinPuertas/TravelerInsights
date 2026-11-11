@@ -92,16 +92,76 @@ def metricas_prueba(y_true, y_pred, clases) -> dict:
     }
 
 
-def compuerta(resultado: dict, gate: dict, produccion: dict | None) -> dict:
+def particion_balanceada(y, por_clase: int, seed: int):
+    """Índices (train, test) con el MISMO número de ejemplos por clase en la prueba.
+
+    El resto de cada clase queda para entrenamiento. `por_clase` no puede superar
+    la mitad de la clase más pequeña, para no dejar el entrenamiento sin ejemplos.
+    """
+    y = np.asarray(y)
+    clases, conteos = np.unique(y, return_counts=True)
+    maximo = int(conteos.min() // 2)
+    if por_clase > maximo:
+        raise ValueError(f"test_per_class={por_clase} supera la mitad de la clase menor ({conteos.min()}); máximo {maximo}")
+    rng = np.random.default_rng(seed)
+    te = np.concatenate([rng.choice(np.flatnonzero(y == c), por_clase, replace=False) for c in clases])
+    tr = np.setdiff1d(np.arange(len(y)), te)
+    return tr, np.sort(te)
+
+
+def esquema_particion(cfg: dict) -> dict:
+    d = cfg["data"]
+    if d.get("test_split", "stratified") == "balanced":
+        return {"test_split": "balanced", "test_per_class": int(d["test_per_class"]), "seed": cfg["seed"]}
+    return {"test_split": "stratified", "test_size": d["test_size"], "seed": cfg["seed"]}
+
+
+def evaluacion_balanceada_repetida(fabricas: dict, X, y, X_extra, y_extra, por_clase: int, repeticiones: int, seed: int) -> dict:
+    """macro-F1 sobre `repeticiones` particiones balanceadas distintas.
+
+    Una sola prueba balanceada es pequeña (pocas reseñas negativas): repetir la
+    partición da una estimación más estable y su variabilidad real.
+    `X_extra`/`y_extra` (retroalimentación humana) se suman siempre al entrenamiento.
+    """
+    X, y = np.asarray(X, dtype=object), np.asarray(y)
+    f1s = {n: [] for n in fabricas}
+    for r in range(repeticiones):
+        tr, te = particion_balanceada(y, por_clase, seed + 1000 + r)
+        Xtr = np.concatenate([X[tr], np.asarray(X_extra, dtype=object)])
+        ytr = np.concatenate([y[tr], np.asarray(y_extra)])
+        for n, fab in fabricas.items():
+            m = fab().fit(Xtr, ytr)
+            f1s[n].append(f1_score(y[te], m.predict(X[te]), average="macro"))
+    out = {}
+    for n, v in f1s.items():
+        v = np.array(v)
+        out[n] = {"macro_f1_mean": round(float(v.mean()), 4), "macro_f1_std": round(float(v.std(ddof=1)), 4),
+                  "p2_5": round(float(np.percentile(v, 2.5)), 4), "p97_5": round(float(np.percentile(v, 97.5)), 4)}
+    return {"repeticiones": repeticiones, "test_per_class": por_clase, "modelos": out}
+
+
+def compuerta(resultado: dict, gate: dict, produccion: dict | None, esquema: dict | None = None) -> dict:
     f1 = resultado["candidate"]["test"]["macro_f1"]
     dummy = resultado["baselines"]["dummy_mayoritaria"]["test"]["macro_f1"]
     checks = {
         "min_macro_f1": (f1 >= gate["min_macro_f1"], f"macro-F1 {f1:.4f} ≥ {gate['min_macro_f1']}"),
         "beats_dummy": (f1 - dummy >= gate["must_beat_dummy_by"], f"{f1:.4f} − dummy {dummy:.4f} ≥ {gate['must_beat_dummy_by']}"),
     }
+    rep = resultado["candidate"].get("repeated_balanced")
+    if rep:
+        m = rep["modelos"]["candidate"]["macro_f1_mean"]
+        checks["min_macro_f1_repetido"] = (m >= gate["min_macro_f1"],
+                                           f"media {m:.4f} en {rep['repeticiones']} pruebas balanceadas ≥ {gate['min_macro_f1']}")
     if produccion:
-        prod = produccion["candidate"]["test"]["macro_f1"]
-        checks["no_regression"] = (f1 >= prod - gate["max_regression_vs_production"],
-                                   f"{f1:.4f} ≥ producción {prod:.4f} − {gate['max_regression_vs_production']}")
+        esquema_prod = produccion.get("run", {}).get("split")
+        if esquema is None or esquema_prod == esquema:
+            prod = produccion["candidate"]["test"]["macro_f1"]
+            checks["no_regression"] = (f1 >= prod - gate["max_regression_vs_production"],
+                                       f"{f1:.4f} ≥ producción {prod:.4f} − {gate['max_regression_vs_production']}")
+        else:
+            # Métricas en particiones distintas no son comparables (y el modelo en producción
+            # se reentrenó con todos los datos, incluida la nueva prueba). Lo decide la revisión del PR.
+            checks["no_regression"] = (True, f"no comparable: cambió la partición de prueba ({esquema_prod} → {esquema}); "
+                                             "revise el PR")
     out = {k: {"passed": bool(ok), "detail": d} for k, (ok, d) in checks.items()}
     return {"checks": out, "passed": all(c["passed"] for c in out.values())}

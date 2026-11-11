@@ -53,3 +53,17 @@ def test_feedback_se_suma_solo_al_entrenamiento(tmp_path, df_multi):
     assert run(str(cfgp), str(tmp_path / "model"), str(tmp_path / "reports")) == 0
     dq = json.loads((tmp_path / "reports" / "data_quality.json").read_text(encoding="utf-8"))
     assert dq["feedback"]["rows_added"] == 2
+
+
+def test_particion_balanceada_soporte_igual():
+    import numpy as np
+
+    from traveler_insights.ml.evaluate import particion_balanceada
+    y = np.array(["neutral"] * 60 + ["positivo"] * 20 + ["negativo"] * 8)
+    tr, te = particion_balanceada(y, 4, 0)
+    assert set(tr).isdisjoint(te) and len(tr) + len(te) == len(y)
+    vals, cnt = np.unique(y[te], return_counts=True)
+    assert list(cnt) == [4, 4, 4]
+    import pytest
+    with pytest.raises(ValueError):
+        particion_balanceada(y, 5, 0)          # más de la mitad de la clase menor

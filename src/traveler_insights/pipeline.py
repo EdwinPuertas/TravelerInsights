@@ -64,8 +64,19 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
         print("✘ Los datos no cumplen los requisitos de calidad. Pipeline detenido.")
         return 1
 
-    X_tr, X_te, y_tr, y_te = train_test_split(d["texto"], d["etiqueta"], test_size=cfg["data"]["test_size"],
-                                              stratify=d["etiqueta"], random_state=seed)
+    esquema = ev.esquema_particion(cfg)
+    if esquema["test_split"] == "balanced":
+        # Prueba con el mismo soporte por clase: el macro-F1 y el micro-F1 no quedan dominados por "neutral"
+        i_tr, i_te = ev.particion_balanceada(d["etiqueta"].values, esquema["test_per_class"], seed)
+        X_tr, X_te = d["texto"].iloc[i_tr].reset_index(drop=True), d["texto"].iloc[i_te].reset_index(drop=True)
+        y_tr, y_te = d["etiqueta"].iloc[i_tr].reset_index(drop=True), d["etiqueta"].iloc[i_te].reset_index(drop=True)
+    else:
+        X_tr, X_te, y_tr, y_te = train_test_split(d["texto"], d["etiqueta"], test_size=cfg["data"]["test_size"],
+                                                  stratify=d["etiqueta"], random_state=seed)
+    d_orig = d
+    fb_X, fb_y = pd.Series(dtype=object), pd.Series(dtype=object)
+    print(f"      partición {esquema['test_split']}: entrenamiento {len(X_tr)} · prueba {len(X_te)} "
+          f"{y_te.value_counts().to_dict()}")
 
     # ---------------------------------------------------------------- 1b. retroalimentación humana
     # Las correcciones de la app se suman SOLO al entrenamiento: la prueba queda intacta y comparable
@@ -80,6 +91,7 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
         prueba = set(X_te.map(_norm))
         fbd = fbd[~fbd["_n"].isin(prueba)]
         fbd = fbd[~fbd["_n"].isin(set(X_tr.map(_norm)))]                  # no duplicar lo que ya está
+        fb_X, fb_y = fbd["texto"], fbd["clase_correcta"]
         X_tr = pd.concat([X_tr, fbd["texto"]], ignore_index=True)
         y_tr = pd.concat([y_tr, fbd["clase_correcta"]], ignore_index=True)
         d = pd.concat([d, fbd.rename(columns={"clase_correcta": "etiqueta"})[["texto", "etiqueta"]]], ignore_index=True)
@@ -115,17 +127,29 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
     res["candidate"]["calibration"] = ev.calibracion(y_te, proba, cand.classes_, e["calibration_bins"])
     res["candidate"]["tau_curve"] = ev.curva_tau(y_te, proba, cand.classes_)
     res["candidate"]["by_length"] = ev.por_subgrupo(X_te, y_te, preds["candidate"])
+    reps = int(e.get("balanced_repeats", 0))
+    if esquema["test_split"] == "balanced" and reps > 0:
+        print(f"      evaluación repetida: {reps} particiones balanceadas")
+        from sklearn.dummy import DummyClassifier
+        rb = ev.evaluacion_balanceada_repetida(
+            {"candidate": lambda: modelo_candidato(p), "dummy_mayoritaria": lambda: DummyClassifier(strategy="most_frequent")},
+            d_orig["texto"], d_orig["etiqueta"], fb_X, fb_y, esquema["test_per_class"], reps, seed)
+        res["candidate"]["repeated_balanced"] = rb
+        c_rb = rb["modelos"]["candidate"]
+        print(f"      macro-F1 {c_rb['macro_f1_mean']:.4f} ± {c_rb['macro_f1_std']:.4f} "
+              f"[{c_rb['p2_5']:.4f}, {c_rb['p97_5']:.4f}]")
 
     # ---------------------------------------------------------------- 4. compuerta
     print("[4/5] Compuerta de calidad")
     prod_path = mod_dir / "metrics.json"
     produccion = json.loads(prod_path.read_text(encoding="utf-8")) if prod_path.exists() else None
-    gate = ev.compuerta(res, cfg["quality_gate"], produccion)
+    gate = ev.compuerta(res, cfg["quality_gate"], produccion, esquema)
     res["quality_gate"] = gate
     res["run"] = {"timestamp_utc": dt.datetime.now(dt.UTC).isoformat(timespec="seconds"),
                   "python": platform.python_version(), "sklearn": sklearn.__version__,
                   "config": cfg, "data_sha256": calidad["data_sha256"],
-                  "n_train": len(X_tr), "n_test": len(X_te)}
+                  "n_train": len(X_tr), "n_test": len(X_te), "split": esquema,
+                  "test_support": {str(k): int(v) for k, v in y_te.value_counts().sort_index().items()}}
     for k, c in gate["checks"].items():
         print(f"      {'✔' if c['passed'] else '✘'} {k}: {c['detail']}")
 
@@ -169,10 +193,22 @@ def informe(res: dict, calidad: dict) -> str:
                f"McNemar: solo con léxico acierta {a['only_candidate_correct']}, solo sin léxico acierta "
                f"{a['only_baseline_correct']}, p = {a['p_value']}\n")
     sub = "\n".join(f"| {g} | {v['n']} | {v['macro_f1']} |" for g, v in c["by_length"].items())
+    pc = c["test"].get("per_class", {})
+    clases_pc = [k for k in pc if k not in ("accuracy", "macro avg", "weighted avg")]
+    tabla_pc = "\n".join(f"| {k} | {pc[k]['precision']:.3f} | {pc[k]['recall']:.3f} | {pc[k]['f1-score']:.3f} | {int(pc[k]['support'])} |"
+                         for k in clases_pc)
+    rep_txt = ""
+    if c.get("repeated_balanced"):
+        rb = c["repeated_balanced"]
+        rep_txt = "\n**Evaluación repetida ({} particiones balanceadas de {} por clase):** ".format(
+            rb["repeticiones"], rb["test_per_class"]) + " · ".join(
+            f"{n} macro-F1 {v['macro_f1_mean']} ± {v['macro_f1_std']} [{v['p2_5']}, {v['p97_5']}]" for n, v in rb["modelos"].items()) + "\n"
     return f"""# Informe de evaluación
 
 Generado: {res['run']['timestamp_utc']} · datos `{calidad['data_sha256'][:12]}` · entrenamiento {res['run']['n_train']} (incluye {calidad.get('feedback', {}).get('rows_added', 0)} de retroalimentación humana) · prueba {res['run']['n_test']}
 
+**Partición de prueba:** {res['run']['split']['test_split']} · soporte por clase {res['run']['test_support']}
+{rep_txt}
 **Candidato en prueba:** macro-F1 {c['test']['macro_f1']} · micro-F1 {c['test'].get('micro_f1', c['test']['accuracy'])} (= exactitud)
 
 ## Compuerta de calidad: {'APROBADO ✅' if res['quality_gate']['passed'] else 'RECHAZADO ❌'}
@@ -187,6 +223,11 @@ Generado: {res['run']['timestamp_utc']} · datos `{calidad['data_sha256'][:12]}`
 - McNemar frente a Naive Bayes: solo el candidato acierta {mc['only_candidate_correct']}, solo NB acierta {mc['only_baseline_correct']}, p = {mc['p_value']}
 - Calibración: ECE = {c['calibration']['ece']}
 {abl}
+## Desempeño por clase (prueba)
+| Clase | Precisión | Recall | F1 | Soporte |
+|---|---|---|---|---|
+{tabla_pc}
+
 ## Desempeño por longitud de reseña
 | Grupo | n | macro-F1 |
 |---|---|---|
