@@ -12,7 +12,7 @@ from ..core.text import normalizar
 from .lexical import RasgosLexicos
 
 
-def modelo_candidato(p: dict, lexical: bool | None = None) -> Pipeline:
+def modelo_candidato(p: dict, lexical: bool | None = None, resampling: bool | None = None):
     """TF-IDF de palabras + caracteres (+ rasgos léxicos del curso) → Regresión logística.
 
     ``lexical=None`` toma el valor de ``p["lexical_features"]``. Todo es exportable a JSON.
@@ -29,17 +29,31 @@ def modelo_candidato(p: dict, lexical: bool | None = None) -> Pipeline:
     if usar_lex:
         # El escalador se ajusta dentro de cada pliegue (es parte del pipeline): sin fuga de información
         bloques.append(("lex", Pipeline([("rasgos", RasgosLexicos()), ("escala", StandardScaler())])))
-    return Pipeline([
-        ("feats", FeatureUnion(bloques)),
-        ("clf", LogisticRegression(C=p["C"], class_weight=p["class_weight"], max_iter=p["max_iter"])),
-    ])
+    usar_rs = (p.get("resampling", "none") != "none") if resampling is None else resampling
+    clf = LogisticRegression(C=p["C"], class_weight=p["class_weight"], max_iter=p["max_iter"])
+    if usar_rs:
+        # SMOTE + submuestreo al promedio de las dos clases menores, solo durante el ajuste
+        from imblearn.pipeline import Pipeline as ImbPipeline
+
+        from .balance import muestreador
+        return ImbPipeline([("feats", FeatureUnion(bloques)), ("balance", muestreador(p.get("seed", 42))), ("clf", clf)])
+    return Pipeline([("feats", FeatureUnion(bloques)), ("clf", clf)])
 
 
-def baselines(p: dict) -> dict:
+def baselines(p: dict, externos: tuple | None = None) -> dict:
+    """Baselines y ablaciones. `externos` = (X_ext, y_ext) si el candidato usa datos externos."""
+    from .balance import ConDatosExternos
     extra = {}
+    rs = p.get("resampling", "none") != "none"
+    if rs or externos:
+        extra["sin_balanceo_ni_externos"] = modelo_candidato(p, resampling=False)
+    if rs and externos:
+        extra["solo_smote_submuestreo"] = modelo_candidato(p, resampling=True)
+        extra["solo_datos_externos"] = ConDatosExternos(modelo_candidato(p, resampling=False), *externos)
     if p.get("lexical_features", False):
         # Ablación: el mismo candidato sin rasgos léxicos, para medir cuánto aportan
-        extra["tfidf_logreg_sin_lexico"] = modelo_candidato(p, lexical=False)
+        sin_lex = modelo_candidato(p, lexical=False)
+        extra["tfidf_logreg_sin_lexico"] = ConDatosExternos(sin_lex, *externos) if externos else sin_lex
     return {**extra,
         "dummy_mayoritaria": DummyClassifier(strategy="most_frequent"),
         "tfidf_naive_bayes": Pipeline([

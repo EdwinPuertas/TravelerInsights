@@ -47,6 +47,8 @@ jobs:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
         run: python scripts/export_feedback.py
+      - name: Descargar datos externos (OpeNER-es)
+        run: python scripts/fetch_external.py --clases negativo
       - name: Pipeline CRISP-ML(Q)
         id: pipeline
         run: python -m traveler_insights.pipeline --config configs/params.yaml

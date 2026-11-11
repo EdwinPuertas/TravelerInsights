@@ -21,6 +21,9 @@ data:
   test_size: 0.2
   # Retroalimentación humana exportada de la app (workflow Train). Solo se agrega al entrenamiento.
   feedback_path: data/feedback/feedback.csv
+  # Reseñas REALES de otros corpus (scripts/fetch_external.py). Solo entran al entrenamiento.
+  external:
+    - data/external/opener_es.csv
   # Requisitos de calidad de datos (fase 2). Si no se cumplen, el pipeline se detiene.
   quality:
     min_rows: 200
@@ -39,6 +42,10 @@ model:
   sublinear_tf: true
   C: 4.0
   class_weight: balanced
+  # Balanceo dentro del entrenamiento (cada pliegue): el objetivo por clase es el promedio de las
+  # dos clases menores; las mayores se submuestrean y las menores se completan con SMOTE.
+  #   none | smote_mean_two_smallest
+  resampling: smote_mean_two_smallest
   max_iter: 2000
 
 evaluation:

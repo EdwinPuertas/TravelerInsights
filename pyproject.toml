@@ -18,7 +18,8 @@ train = [
     "scipy>=1.13",
     "pyyaml>=6.0",
     "kaggle>=1.8",
-    "six>=1.16",           # kaggle 2.2.x lo usa pero no lo declara como dependencia
+    "six>=1.16",
+    "imbalanced-learn>=0.12",  # SMOTE + submuestreo (solo entrenamiento)           # kaggle 2.2.x lo usa pero no lo declara como dependencia
 ]
 dev = [
     "pytest>=8.0",

@@ -103,11 +103,38 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
         print(f"      + {len(fbd)} reseñas de retroalimentación humana añadidas al entrenamiento")
         _dump(calidad, rep_dir / "data_quality.json")
 
+    # ---------------------------------------------------------------- 1c. datos externos
+    # Reseñas reales de otros corpus: se suman SOLO al entrenamiento (nunca a la evaluación)
+    from .ml.balance import ConDatosExternos
+    externos = None
+    calidad["external"] = {"rows_added": 0}
+    rutas_ext = [Path(r) for r in cfg["data"].get("external", []) or []]
+    partes = []
+    for r in rutas_ext:
+        if r.exists():
+            partes.append(pd.read_csv(r)[["texto", "etiqueta", "fuente"]].dropna().astype(str))
+        else:
+            print(f"      ⚠ dato externo no encontrado: {r}")
+    if partes:
+        from .core.text import normalizar as _n2
+        ext = pd.concat(partes, ignore_index=True)
+        ext = ext[ext["etiqueta"].isin(set(d_orig["etiqueta"]))]
+        ext["_n"] = ext["texto"].map(_n2)
+        ext = ext.drop_duplicates("_n")
+        ext = ext[~ext["_n"].isin(set(d_orig["texto"].map(_n2)))]     # nunca un texto que se evalúa
+        externos = (ext["texto"].tolist(), ext["etiqueta"].tolist())
+        calidad["external"] = {"rows_added": int(len(ext)), "by_class": ext["etiqueta"].value_counts().to_dict(),
+                               "by_source": ext["fuente"].value_counts().to_dict()}
+        print(f"      + {len(ext)} reseñas externas para entrenamiento {calidad['external']['by_class']}")
+    _dump(calidad, rep_dir / "data_quality.json")
+
     # ---------------------------------------------------------------- 2. entrenamiento
     print("[2/5] Entrenamiento con validación cruzada")
-    p = cfg["model"]
+    p = {**cfg["model"], "seed": seed}
     folds = cfg["evaluation"]["cv_folds"]
-    modelos = {**baselines(p), "candidate": modelo_candidato(p)}
+    cand_base = modelo_candidato(p)
+    candidato = ConDatosExternos(cand_base, *externos) if externos else cand_base
+    modelos = {**baselines(p, externos), "candidate": candidato}
     res = {"baselines": {}, "candidate": {}}
     preds = {}
     modo_cv = esquema["test_split"] == "cv"
@@ -172,7 +199,9 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
 
     # ---------------------------------------------------------------- 5. exportación
     print("[5/5] Exportación")
-    final = modelo_candidato(p).fit(d["texto"], d["etiqueta"])   # reentrenar con todos los datos
+    final_w = (ConDatosExternos(modelo_candidato(p), *externos) if externos else modelo_candidato(p))
+    final_w.fit(d["texto"], d["etiqueta"])                        # reentrenar con todos los datos (+ externos)
+    final = final_w.estimator_ if externos else final_w
     meta = {"created_utc": res["run"]["timestamp_utc"], "data_sha256": calidad["data_sha256"],
             "columns": calidad["columns"], "test_macro_f1": res["candidate"]["test"]["macro_f1"],
             "polarity": mapa_polaridad([str(c) for c in final.classes_]), "tau": cfg["serving"]["tau"]}
@@ -229,6 +258,8 @@ def informe(res: dict, calidad: dict) -> str:
     return f"""# Informe de evaluación
 
 Generado: {res['run']['timestamp_utc']} · datos `{calidad['data_sha256'][:12]}` · entrenamiento {res['run']['n_train']} (incluye {calidad.get('feedback', {}).get('rows_added', 0)} de retroalimentación humana) · prueba {res['run']['n_test']}
+
+**Balanceo:** {res['run']['config']['model'].get('resampling', 'none')} · **datos externos (solo entrenamiento):** {calidad.get('external', {}).get('rows_added', 0)} {calidad.get('external', {}).get('by_source', '')}
 
 **Evaluación:** {esq_txt} · soporte por clase {res['run']['test_support']}
 {rep_txt}

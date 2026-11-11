@@ -80,3 +80,26 @@ def test_predicciones_oof_cubren_todo():
     assert len(p) == 40 and all(v in ("a", "b") for v in p)
     r = oof_repetido(DummyClassifier(strategy="most_frequent"), X, y, 5, 3, 0)
     assert r["repeticiones"] == 3 and abs(r["micro_f1_mean"] - 0.75) < 1e-9
+
+
+def test_balanceo_promedio_dos_menores():
+    from collections import Counter
+
+    import numpy as np
+    from scipy import sparse
+
+    from traveler_insights.ml.balance import _remuestrear, objetivo_dos_menores
+    y = np.array(["neu"] * 100 + ["pos"] * 30 + ["neg"] * 10)
+    assert objetivo_dos_menores(y) == 20
+    X = sparse.random(len(y), 15, density=0.4, random_state=0, format="csr")
+    Xr, yr = _remuestrear(X, y, seed=0)
+    assert Counter(yr) == {"neu": 20, "pos": 20, "neg": 20}
+
+
+def test_datos_externos_solo_en_entrenamiento():
+    import numpy as np
+    from sklearn.dummy import DummyClassifier
+
+    from traveler_insights.ml.balance import ConDatosExternos
+    m = ConDatosExternos(DummyClassifier(strategy="most_frequent"), ["x"] * 5, ["b"] * 5).fit(["t"] * 3, ["a"] * 3)
+    assert list(m.predict(np.array(["t"]))) == ["b"] and set(m.classes_) == {"a", "b"}
