@@ -158,6 +158,9 @@ def run(config: str, out_model: str = "model", out_reports: str = "reports") -> 
         (res["candidate"] if nombre == "candidate" else res["baselines"].setdefault(nombre, {})).update(bloque)
         print(f"      {nombre:20s} CV macro-F1 {cv['macro_f1_mean']:.4f} ± {cv['macro_f1_std']:.4f}"
               f" | prueba {bloque['test']['macro_f1']:.4f}")
+        pc = bloque["test"].get("per_class", {})
+        print("      " + " " * 20 + " recall por clase: " + " · ".join(
+            f"{k} {v['recall']:.2f}" for k, v in pc.items() if isinstance(v, dict) and k not in ("macro avg", "weighted avg")))
 
     # ---------------------------------------------------------------- 3. evaluación
     print("[3/5] Evaluación del candidato")
